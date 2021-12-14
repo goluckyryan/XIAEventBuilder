@@ -1,10 +1,15 @@
 CC=g++
 
-all: xia2root
-#all: xia2root  xia2ev2
+all: xia2root  xia2ev2_nopart pixie2root scan
 
 xia2root: xia2root.cpp
 	$(CC) xia2root.cpp -o xia2root `root-config --cflags --glibs`
 
-xia2ev2: xia2ev2_nopart.cpp
+xia2ev2_nopart: xia2ev2_nopart.cpp
 	$(CC) xia2ev2_nopart.cpp -o xia2ev2_nopart
+
+pixie2root: pixie2root.cpp
+	$(CC) pixie2root.cpp -o pixie2root `root-config --cflags --glibs`
+
+scan: scan.c
+	$(CC) scan.c -o scan

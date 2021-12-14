@@ -1,6 +1,14 @@
 *.root
 *.evt
+*.evt.to
 *.ev2
 *.log
+
 xia2root
 xia2ev2*
+pixie2root
+scan
+
+*.so
+*.d
+*.pcm
