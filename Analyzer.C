@@ -34,7 +34,7 @@ TH2F * hcoin;
 ///----- after calibration
 TH2F * heCalVID;
 TH1F * heCal[NCLOVER]; // BGO veto
-
+TH2F * hcoinBGO;
 
 void Analyzer::Begin(TTree * tree){
 
@@ -51,14 +51,15 @@ void Analyzer::Begin(TTree * tree){
    }
    
    for( int i = 0; i < NCLOVER; i++){
-      for( int j = i; j < NCLOVER; j++){
-         hgg[i][j] = new TH2F(Form("hg%02dg%02d", i, j), Form(" e%02d vs e%02d; e%02d; e%02d", i, j, i, j), 
-               rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1], 
-               rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
+      for( int j = i+1; j < NCLOVER; j++){
+         hgg[i][j] = new TH2F(Form("hgg%02d%02d", i, j), Form("e%02d vs e%02d; e%02d; e%02d", i, j, i, j), 
+                 (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1], 
+                 (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1]);
       }
    }
    
    hcoin = new TH2F("hcoin", "detector coin.; det ID; det ID", NCLOVER, 0, NCLOVER, NCLOVER, 0 , NCLOVER); 
+   hcoinBGO = new TH2F("hcoinBGO", Form("detector coin. (BGO veto > %.1f); det ID; det ID", BGO_threshold), NCLOVER, 0, NCLOVER, NCLOVER, 0 , NCLOVER); 
    
    printf("======================== End of histograms Declaration\n");
    StpWatch.Start();
@@ -98,7 +99,7 @@ Bool_t Analyzer::Process(Long64_t entry){
       heVID->Fill( detID, e[detID]);
       he[detID]->Fill(e[detID]);
       
-      for( int detJ = detID; detJ < NCLOVER; detJ++) {
+      for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
          hgg[detID][detJ]->Fill(e[detID], e[detJ]); // x then y
          hcoin->Fill(detID, detJ); 
@@ -117,6 +118,11 @@ Bool_t Analyzer::Process(Long64_t entry){
       
       heCalVID->Fill( detID, eCal);
       heCal[detID]->Fill(eCal);
+      
+      for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
+         if( TMath::IsNaN(e[detJ])) continue;
+         hcoinBGO->Fill(detID, detJ); 
+      }
       
    }
    
@@ -156,16 +162,13 @@ void drawE(bool isLogy = false, bool cali = false){
 
 }
 
-
-
-
 void Analyzer::Terminate(){
 
    printf("============================== finishing.\n");
    gROOT->cd();
 
-   int canvasXY[2] = {1200 , 1600} ;// x, y
-   int canvasDiv[2] = {1,2};
+   int canvasXY[2] = {1200 , 1200} ;// x, y
+   int canvasDiv[2] = {2,2};
    TCanvas *cCanvas  = new TCanvas("cCanvas", "" ,canvasXY[0],canvasXY[1]);
    cCanvas->Modified(); cCanvas->Update();
    cCanvas->cd(); cCanvas->Divide(canvasDiv[0],canvasDiv[1]);
@@ -179,6 +182,14 @@ void Analyzer::Terminate(){
    cCanvas->cd(2);
    cCanvas->cd(2)->SetLogz(1);
    heCalVID->Draw("colz");
+   
+   cCanvas->cd(3);
+   cCanvas->cd(3)->SetLogz(1);
+   hcoin->Draw("colz");
+   
+   cCanvas->cd(4);
+   cCanvas->cd(4)->SetLogz(1);
+   hcoinBGO->Draw("colz");
    
    listDraws();
    
