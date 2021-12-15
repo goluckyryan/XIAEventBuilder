@@ -1,17 +1,9 @@
 /**********************************************************/
+/*                                                        */
+/*  Modified  by Ryan From                                */
+/*                                                        */
 /* PXI SCAN CODE -- J.M. Allmond (ORNL) -- July 2016      */
 /*                                                        */
-/* !unpak data from Pixie-16 digitizers, event build,     */
-/* !and create detctors and user defined spectra          */
-/*                                                        */
-/* gcc -o pxi-scan pxi-scan.c                             */
-/* ./pxi-scan -op datafile calibrationfile mapfile        */
-/*                                                        */
-/* ..... calibration file optional                        */
-/* ..... map file optional                                */
-/* ..... u for update spectra                             */
-/* ..... o for overwrite spectra                          */
-/* ..... p for print realtime stats                       */
 /**********************************************************/
 
 #include <stdio.h>
@@ -25,14 +17,7 @@
 #include "TMath.h"
 #include "TBenchmark.h"
 
-#define PRINT_CAL 1
-#define PRINT_MAP 1
-
 #define RAND ((float) rand() / ((unsigned int) RAND_MAX + 1))   // random number in interval (0,1)
-#define TRUE  1
-#define FALSE 0
-
-#define LINE_LENGTH 120
 
 #define MAX_CRATES 2
 #define MAX_BOARDS_PER_CRATE 13
@@ -43,8 +28,6 @@
 
 #define HEADER_LENGTH 4     //unit = words with 4 bytes per word
 #define MAX_SUB_LENGTH 2016 //unit = words with 4 bytes per word ; 2004 --> 40 micro-second trace + 4 word header
-
-#define EVENT_BUILD_TIME 109 // 100 = 1 micro-second ; should be < L + G ~ 5.04 us (note 0.08 us scale factor in set file)
 
 #define RAWE_REBIN_FACTOR 2.0 // Rebin 32k pixie16 spectra to something smaller to fit better into 8k.
 
@@ -82,6 +65,9 @@ unsigned long long int evtcount=0;
 int mult[1][4096]={0};
 
 int tdifid[MAX_ID][8192]={0};
+
+/****
+int overwrite = 1;    
 
 ///////////////////////
 // Write 2-byte data //
@@ -161,7 +147,7 @@ void write_data4(char *filename, int *data, int xdim, int ydim, int overwrite) {
     fwrite(data, sizeof(int)*xdim, ydim, FP);
     fclose(FP);            
 }    
-
+******/
 
 ///////////////////////////////////
 // START OF MAIN FUNCTION        //
@@ -170,20 +156,9 @@ int main(int argc, char **argv) {
   
   int i=0, j=0, k=0;
   float tempf=0;
-  int max1=0, min1=0;
-  int max2=0, min2=0;
-  int maxid1=-1, minid1=-1;
-  int maxid2=-1, minid2=-1;
+
   div_t e_div;
   lldiv_t lle_div;
-
-  int overwrite = 1;    
-
-  double etrace0,etrace1,btrace0,btrace1;
-  double ptrace0,ptrace1,ttrace0,ttrace1,tautrace0,tautrace1;
-  int dbcount = 0;
-  long long int strace[500];
-  memset(strace, 0, sizeof(strace));
 
   //temp buffer for each sub event
   unsigned int sub[MAX_SUB_LENGTH];
@@ -217,6 +192,7 @@ int main(int argc, char **argv) {
   printf(" our file : %s \n", outFileName.Data());
 
   printf(" number of detector channal: %d \n", MAX_ID);
+  printf("------------------------ Event building time window : %d tics = %d nsec \n", EVENT_BUILD_TIME, EVENT_BUILD_TIME*10);
 
   TFile * outRootFile = new TFile(outFileName, "recreate");
   outRootFile->cd();

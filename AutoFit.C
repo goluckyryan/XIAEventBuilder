@@ -24,7 +24,7 @@ void ShowFitMethod(){
   printf("------- Mouse click Fit : \n");
   printf("    clickFitNGaussPol() - fit n-Gauss + pol-n BG \n");
   printf(" clickFitNGaussPolSub() - Fit Pol-n BG, subtract, fit n-Gauss\n");
-  printf("          SaveFitPara() - Save the initial guess parameters.\n");
+  printf("          saveFitPara() - Save the initial guess parameters.\n");
   printf("---------------------------------------------------------\n");
 }
 
@@ -1934,7 +1934,7 @@ void Clicked() {
 }
 
 
-void SaveFitPara(TString fileName = "AutoFit_para.txt"){
+void saveFitPara(TString fileName = "AutoFit_para.txt"){
   printf("Save to : %s \n", fileName.Data()); 
   FILE * file_out;
   file_out = fopen (fileName.Data(), "w+");
