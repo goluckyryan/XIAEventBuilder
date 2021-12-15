@@ -8,7 +8,10 @@ xia2root
 xia2ev2*
 pixie2root
 scan
+pxi-time-order
 
 *.so
 *.d
 *.pcm
+
+ti74pt7a

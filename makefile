@@ -1,6 +1,6 @@
 CC=g++
 
-all: xia2root  xia2ev2_nopart pixie2root scan
+all: xia2root  xia2ev2_nopart pixie2root scan pxi-time-order
 
 xia2root: xia2root.cpp
 	$(CC) xia2root.cpp -o xia2root `root-config --cflags --glibs`
@@ -13,3 +13,6 @@ pixie2root: pixie2root.cpp
 
 scan: scan.c
 	$(CC) scan.c -o scan
+
+pxi-time-order: pxi-time-order.c
+	$(CC) pxi-time-order.c -o pxi-time-order 
