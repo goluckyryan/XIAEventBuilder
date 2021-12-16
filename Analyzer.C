@@ -129,7 +129,12 @@ Bool_t Analyzer::Process(Long64_t entry){
    
       
       //========= apply correction
-      double eCal = e[detID];
+      double eCal = 0 ;
+      int order = (int) eCorr[detID].size();
+      for( int i = 0; i < order ; i++){
+         eCal += eCorr[detID][i] * TMath::Power(e[detID], i);
+      }
+      
       
       heCalVID->Fill( detID, eCal);
       heCal[detID]->Fill(eCal);
