@@ -12,9 +12,11 @@
 //############################################ User setting
 
 int rawEnergyRange[2] = {100,  6000}; // in ch
-int energyRange[2] = {100, 2000}; // keV
+int energyRange[3] = {1, 100, 2000}; // keV {resol, min, max}
 
 double BGO_threshold = 100; // in ch
+
+TString e_corr = "e_corr.txt";
 
 //############################################ end of user setting
 
@@ -23,12 +25,12 @@ ULong64_t ProcessedEntries = 0;
 Float_t Frac = 0.1; ///Progress bar
 TStopwatch StpWatch;
 
+vector<vector<double>> eCorr;
+
 //############################################ histogram declaration
 
 TH2F * heVID;
 TH1F * he[NCLOVER];
-
-TH1F * h1, * h2;
 
 TH2F * hgg[NCLOVER][NCLOVER];
 
@@ -45,10 +47,7 @@ void Analyzer::Begin(TTree * tree){
 
    NumEntries = tree->GetEntries();
 
-   printf("======================== histogram declaration\n");
-
-   h1 = new TH1F("h1", "h1", 1900, 100, 2000);
-   h2 = new TH1F("h2", "h2 BGO gated", 1900, 100, 2000);
+   printf("======================== Histograms declaration\n");
    
    heVID    = new TH2F("heVID",                                              "e vs ID; det ID; e [ch]", NCLOVER, 0, NCLOVER, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
    heCalVID = new TH2F("heCalVID", Form("eCal vs ID (BGO veto > %.1f); det ID; e [ch]", BGO_threshold), NCLOVER, 0, NCLOVER, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
@@ -59,17 +58,23 @@ void Analyzer::Begin(TTree * tree){
    
    for( int i = 0; i < NCLOVER; i++){
       for( int j = i+1; j < NCLOVER; j++){
-         hgg[i][j] = new TH2F(Form("hgg%02d%02d", i, j), Form("e%02d vs e%02d; e%02d; e%02d", i, j, i, j), 
-                 (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1], 
-                 (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1]);
+         //hgg[i][j] = new TH2F(Form("hgg%02d%02d", i, j), Form("e%02d vs e%02d; e%02d; e%02d", i, j, i, j), 
+         //        (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1], 
+         //        (rawEnergyRange[1] - rawEnergyRange[0])/2, rawEnergyRange[0], rawEnergyRange[1]);
       }
    }
    
    hcoin = new TH2F("hcoin", "detector coin.; det ID; det ID", NCLOVER, 0, NCLOVER, NCLOVER, 0 , NCLOVER); 
    hcoinBGO = new TH2F("hcoinBGO", Form("detector coin. (BGO veto > %.1f); det ID; det ID", BGO_threshold), NCLOVER, 0, NCLOVER, NCLOVER, 0 , NCLOVER); 
    
-   printf("======================== End of histograms Declaration\n");
+   printf("======================== End of histograms declaration\n");
+   
+   printf("======================== Load parameters.\n");
+   
+   eCorr = LoadCorrectionParameters(e_corr); 
+   
    StpWatch.Start();
+   printf("======================== Start processing....\n");
 
 }
 
@@ -105,30 +110,12 @@ Bool_t Analyzer::Process(Long64_t entry){
       
       //======== Fill raw data
       heVID->Fill( detID, e[detID]);
-
       he[detID]->Fill(e[detID]);
-
-      if( 8 == detID ) {
-	h1->Fill( e[detID]*0.307484 - 0.505163 );
-	heCal[detID]->Fill( e[detID]*0.307484 - 0.505163 );
-      }
-      if( 9 == detID ) {
-	h1->Fill( e[detID]*0.308628 + 0.672629 );
-	heCal[detID]->Fill( e[detID]*0.308628 + 0.672629 );
-      }
-      if( 10 == detID ) {
-	h1->Fill( e[detID]*0.308445 + 0.238095 );
-	heCal[detID]->Fill( e[detID]*0.308445 + 0.238095 );
-      }
-      if( 11 == detID ) {
-	h1->Fill( e[detID]*0.312665 + 0.359117 );
-	heCal[detID]->Fill( e[detID]*0.312665 + 0.359117 );
-      }
       
       
       for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
-         hgg[detID][detJ]->Fill(e[detID], e[detJ]); // x then y
+         //hgg[detID][detJ]->Fill(e[detID], e[detJ]); // x then y
          hcoin->Fill(detID, detJ); 
       }
       
@@ -139,21 +126,13 @@ Bool_t Analyzer::Process(Long64_t entry){
             return kTRUE;
          }
       }
-
-
-      
-      if(  8 == detID ) h2->Fill( e[detID]*0.307484 - 0.505163 );
-      if(  9 == detID ) h2->Fill( e[detID]*0.308628 + 0.672629 );
-      if( 10 == detID ) h2->Fill( e[detID]*0.308445 + 0.238095 );
-      if( 11 == detID ) h2->Fill( e[detID]*0.312665 + 0.359117 );
-
-      
+   
       
       //========= apply correction
       double eCal = e[detID];
       
       heCalVID->Fill( detID, eCal);
-      //heCal[detID]->Fill(eCal);
+      heCal[detID]->Fill(eCal);
       
       for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
@@ -187,22 +166,16 @@ void Analyzer::Terminate(){
    heCalVID->Draw("colz");
    
    cCanvas->cd(3);
-   //cCanvas->cd(3)->SetLogz(1);
-   //hcoin->Draw("colz");
-   h1->Draw("");
-   heCal[8]->SetLineColor(2);heCal[8]->Draw("same");
-   heCal[9]->SetLineColor(4);heCal[9]->Draw("same");
-   heCal[10]->SetLineColor(6);heCal[10]->Draw("same");
-   heCal[11]->SetLineColor(7);heCal[11]->Draw("same");
+   cCanvas->cd(3)->SetLogz(1);
+   hcoin->Draw("colz");
    
    cCanvas->cd(4);
-   //cCanvas->cd(4)->SetLogz(1);
-   //hcoinBGO->Draw("colz");
-   h2->Draw("");
+   cCanvas->cd(4)->SetLogz(1);
+   hcoinBGO->Draw("colz");
    
    printf("=============== Analyzer Utility\n");
-   gROOT->ProcessLine(".L Analyzer_Utilt.c");
-   //gROOT->ProcessLine("listDraws()");
+   gROOT->ProcessLine(".L Analyzer_Utili.c");
+   gROOT->ProcessLine("listDraws()");
    
    printf("=============== loaded AutoFit.C\n");
    gROOT->ProcessLine(".L AutoFit.C");

@@ -8,6 +8,7 @@
 #ifndef Analyzer_h
 #define Analyzer_h
 
+#include <fstream>
 #include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
@@ -110,6 +111,99 @@ void Analyzer::SlaveBegin(TTree * /*tree*/){
 void Analyzer::SlaveTerminate(){
 
 }
+
+
+
+std::vector<std::string> SplitStr(std::string tempLine, std::string splitter, int shift = 0){
+
+  std::vector<std::string> output;
+
+  size_t pos;
+  do{
+    pos = tempLine.find(splitter); /// fine splitter
+    if( pos == 0 ){ ///check if it is splitter again
+      tempLine = tempLine.substr(pos+1);
+      continue;
+    }
+
+    std::string secStr;
+    if( pos == std::string::npos ){
+      secStr = tempLine;
+    }else{
+      secStr = tempLine.substr(0, pos+shift);
+      tempLine = tempLine.substr(pos+shift);
+    }
+
+    ///check if secStr is begin with space
+    while( secStr.substr(0, 1) == " "){
+      secStr = secStr.substr(1);
+    };
+    
+    ///check if secStr is end with space
+    while( secStr.back() == ' '){
+      secStr = secStr.substr(0, secStr.size()-1);
+    }
+
+    output.push_back(secStr);
+    //printf(" |%s---\n", secStr.c_str());
+    
+  }while(pos != std::string::npos );
+
+  return output;
+}
+
+std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
+
+  printf("==================== load correction parameters : %s", corrFile.Data());
+  std::ifstream file;
+  file.open(corrFile.Data());
+  
+  std::vector<std::vector<double>> corr;
+  corr.clear();
+  
+  std::vector<double> detCorr;
+  detCorr.clear();
+  
+  if( file.is_open() ){  
+    
+    while( file.good() ){
+    
+      std::string line;
+      getline(file, line);
+    
+      if( line.substr(0,1) == "#" ) continue;
+      if( line.substr(0,2) == "//" ) continue;
+      if( line.size() == 0 ) continue;
+      
+      std::vector<std::string> temp = SplitStr(line, " ");
+      
+      detCorr.clear();
+      for( int i = 0; i < (int) temp.size() ; i++){
+        detCorr.push_back(std::stod(temp[i]));
+      }
+      corr.push_back(detCorr);
+    }
+    
+    file.close();
+    
+    printf(".... done\n");
+    printf("===== correction parameters \n");
+    for( int i = 0; i < (int) corr.size(); i++){
+      printf("det : %2d | ", i );
+      int len = (int) corr[i].size();
+      for( int j = 0; j < len - 1 ; j++){
+        printf("%6.2f, ", corr[i][j]);
+      }
+      printf("%6.2f\n", corr[i][len-1]);
+    }
+  
+  }else{
+    printf(".... fail\n");
+  }
+  
+  return corr;
+}
+
 
 
 #endif // #ifdef Analyzer_cxx

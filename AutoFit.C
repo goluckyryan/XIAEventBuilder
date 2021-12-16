@@ -1,3 +1,12 @@
+/************************************************************
+#
+#  Created by Tsz Leung (Ryan) Tang
+#  goluckyryan@gmail.com
+#  rtang@fsu.edu
+#
+*************************************************************/
+
+
 #ifndef AutoFit_C
 #define AutoFit_C
 
@@ -8,7 +17,7 @@
 #include <TMath.h>
 #include <vector>
 
-void ShowFitMethod(){
+void showFitMethod(){
   printf("----------------------- Method of Fitting ---------------\n");
   printf("---------------------------------------------------------\n");
   printf("         fitAuto() - estimate BG, find peak, and fit n-Gauss \n");

@@ -4,7 +4,7 @@ void listDraws(void) {
   printf("-----------------------------------------------------\n");
   printf("    rawEvID() - Raw e vs ID\n");
   printf("      drawE() - Raw e for all %d detectors\n", NCLOVER);
-  printf("     drawGG() - Gamma - Gamma Coincident for all %d detectors\n", NCLOVER);
+  //printf("     drawGG() - Gamma - Gamma Coincident for all %d detectors\n", NCLOVER);
   printf("-----------------------------------------------------\n");
 }
 
@@ -32,25 +32,15 @@ void drawE(bool isLogy = false, bool cali = false){
 
    TCanvas *cRawE = (TCanvas *) gROOT->FindObjectAny("cRawE");
    if( cRawE == NULL ) cRawE = new TCanvas("cRawE", cali ? "Cal e" : "Raw e", size * numCol, size * nCrystal);
-   cRawE->Clear();cRawE->Divide(numCol, 4);
-   
-   //cRawE->SetRightMargin(0);
-   //cRawE->SetLeftMargin(0);
-   //cRawE->SetTopMargin(0);
-   //cRawE->SetBottomMargin(0);
-   //cRawE->SetTicks(1,1);
-   //cRawE->SetBorderMode(1);
-   
+   cRawE->Clear();cRawE->Divide(numCol, 4, 0);
+
    for (Int_t i = 0; i < nCrystal; i++) {
       for( Int_t j = 0; j < numCol; j++){
          int canvasID = numCol * i + j + 1;
          cRawE->cd(canvasID); 
          cRawE->cd(canvasID)->SetGrid();       
-         cRawE->cd(canvasID)->SetRightMargin(0.1);
-         //cRawE->cd(canvasID)->SetLeftMargin(0);
-         cRawE->cd(canvasID)->SetTopMargin(0);
-         //cRawE->cd(canvasID)->SetBottomMargin(0);  
-         //cRawE->cd(canvasID)->SetBorderMode(1);  
+         cRawE->cd(canvasID)->SetTickx(2);   
+         cRawE->cd(canvasID)->SetTicky(2);   
          if( isLogy ) cRawE->cd(canvasID)->SetLogy();
          int hID = nCrystal*j+ i;
          if( cali ) {
@@ -63,6 +53,7 @@ void drawE(bool isLogy = false, bool cali = false){
 
 }
 
+/**
 void drawGG(){
 
    int nCrystal = 4;
@@ -80,5 +71,14 @@ void drawGG(){
          hgg[i][j]->Draw("colz");
       }
    }
+   
+}
+*/
+
+
+void energyCalibration(){
+//   TCanvas 
+   
+   
    
 }
