@@ -18,7 +18,7 @@ EventBuild=1
 if [ $# -gt 2 ]; then EventBuild=$3; fi
 
 DIR=$(pwd)
-
+DATA_DIR=fsu_run_2021
 
 RED='\033[1;31m'
 YELLOW='\033[1;33m'
@@ -28,11 +28,13 @@ BLUE='\033[0;34m'
 Cyan='\033[0;36m'
 NC='\033[0m'
 
-cd $RunFolder
+#cd $RunFolder
 #ls  -lhtr *.evt
+cd $DATA_DIR/$RunFolder
 fileList=$(ls *.evt)
 numFile=$(ls -lhtr *.evt | wc -l)
 count=0
+cd $DIR
 
 for a in $fileList 
 do
@@ -44,13 +46,13 @@ do
   #............ check if *.to file exist, if yes, check timestamp, if timestamp is eariler, sort time
 
   if [ $TimeSort -eq 1 ]; then
-    evtDateTime=`stat -c "%Z"  $a | sort -rn | head -1`  
+    evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/$a | sort -rn | head -1`  
     istoExist=`ls -1 $a.to | wc -l`
     if [ ${istoExist} -gt 0 ]; then
       echo "found $a.to"
       toDateTime=`stat -c "%Z"  $a.to | sort -rn | head -1`  
       if [ ${evtDateTime} -ge ${toDateTime} ]; then
-        $DIR/pxi-time-order $a 
+        $DIR/$DATA_DIR/pxi-time-order $a 
       else
         echo "$a.to is generated after $a. skip."
       fi
@@ -59,7 +61,7 @@ do
     echo "skipped time sort by user."
   else
     echo "force Time sort"
-    $DIR/pxi-time-order $a 
+    $DATA_DIR/pxi-time-order $DATA_DIR/$RunFolder/$a 
   fi
   
 
@@ -74,7 +76,7 @@ do
       echo "found $rootFile"
       rootDateTime=`stat -c "%Z"  $rootFile | sort -rn | head -1`  
       if [ ${toDateTime} -ge ${rootDateTime} ]; then
-        $DIR/pixie2root $a.to
+        $DATA_DIR/pixie2root $a.to
       else
         echo "$rootFile is generated after $a.to skip."
       fi
@@ -89,6 +91,5 @@ do
 done
 
 fileList=$(ls *.root)
-
 
 cd $DIR

@@ -10,7 +10,7 @@ void listDraws(void) {
 
 int nCanvas=0;
 void newCanvas(int sizeX = 800, int sizeY = 600, int posX = 0, int posY = 0){
-  TString name; name.Form("cNewCanvas%d | %s", nCanvas, canvasTitle.Data());
+  TString name; name.Form("cNewCanvas%d", nCanvas);
   TCanvas * cNewCanvas = new TCanvas(name, name, posX, posY, sizeX, sizeY);
   nCanvas++;
   cNewCanvas->cd();
@@ -75,7 +75,7 @@ void drawGG(){
    cGG->Clear();cGG->Divide(NCLOVER, NCLOVER);
    
    for( int i = 0; i < NCLOVER; i ++){
-      for( int j = i+; j < NCLOVER; j ++){
+      for( int j = i+1; j < NCLOVER; j ++){
          cGG->cd( NCLOVER * i + j +1 );
          hgg[i][j]->Draw("colz");
       }

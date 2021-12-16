@@ -11,9 +11,10 @@
 
 //############################################ User setting
 
-int rawEnergyRange[2] = {100,  2000};
+int rawEnergyRange[2] = {100,  6000}; // in ch
+int energyRange[2] = {100, 2000}; // keV
 
-double BGO_threshold = 100;
+double BGO_threshold = 100; // in ch
 
 //############################################ end of user setting
 
@@ -26,6 +27,8 @@ TStopwatch StpWatch;
 
 TH2F * heVID;
 TH1F * he[NCLOVER];
+
+TH1F * h1, * h2;
 
 TH2F * hgg[NCLOVER][NCLOVER];
 
@@ -43,6 +46,10 @@ void Analyzer::Begin(TTree * tree){
    NumEntries = tree->GetEntries();
 
    printf("======================== histogram declaration\n");
+
+   h1 = new TH1F("h1", "h1", 1900, 100, 2000);
+   h2 = new TH1F("h2", "h2 BGO gated", 1900, 100, 2000);
+   
    heVID    = new TH2F("heVID",                                              "e vs ID; det ID; e [ch]", NCLOVER, 0, NCLOVER, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
    heCalVID = new TH2F("heCalVID", Form("eCal vs ID (BGO veto > %.1f); det ID; e [ch]", BGO_threshold), NCLOVER, 0, NCLOVER, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
    for( int i = 0; i < NCLOVER; i ++){
@@ -82,13 +89,14 @@ Bool_t Analyzer::Process(Long64_t entry){
 
    b_energy->GetEntry(entry);
    b_time->GetEntry(entry);
-   b_pileup->GetEntry(entry);
+   //b_pileup->GetEntry(entry);
    b_bgo->GetEntry(entry);
-   b_other->GetEntry(entry);
-   b_multiplicity->GetEntry(entry);
+   //b_other->GetEntry(entry);
+   //b_multiplicity->GetEntry(entry);
    
    if( multi == 0 ) return kTRUE;
 
+   ///=========== Looping Crystals
    for( int detID = 0; detID < NCLOVER ; detID ++){
       
       //======== baics gate when no energy or pileup 
@@ -97,7 +105,26 @@ Bool_t Analyzer::Process(Long64_t entry){
       
       //======== Fill raw data
       heVID->Fill( detID, e[detID]);
+
       he[detID]->Fill(e[detID]);
+
+      if( 8 == detID ) {
+	h1->Fill( e[detID]*0.307484 - 0.505163 );
+	heCal[detID]->Fill( e[detID]*0.307484 - 0.505163 );
+      }
+      if( 9 == detID ) {
+	h1->Fill( e[detID]*0.308628 + 0.672629 );
+	heCal[detID]->Fill( e[detID]*0.308628 + 0.672629 );
+      }
+      if( 10 == detID ) {
+	h1->Fill( e[detID]*0.308445 + 0.238095 );
+	heCal[detID]->Fill( e[detID]*0.308445 + 0.238095 );
+      }
+      if( 11 == detID ) {
+	h1->Fill( e[detID]*0.312665 + 0.359117 );
+	heCal[detID]->Fill( e[detID]*0.312665 + 0.359117 );
+      }
+      
       
       for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
@@ -112,12 +139,21 @@ Bool_t Analyzer::Process(Long64_t entry){
             return kTRUE;
          }
       }
+
+
+      
+      if(  8 == detID ) h2->Fill( e[detID]*0.307484 - 0.505163 );
+      if(  9 == detID ) h2->Fill( e[detID]*0.308628 + 0.672629 );
+      if( 10 == detID ) h2->Fill( e[detID]*0.308445 + 0.238095 );
+      if( 11 == detID ) h2->Fill( e[detID]*0.312665 + 0.359117 );
+
+      
       
       //========= apply correction
       double eCal = e[detID];
       
       heCalVID->Fill( detID, eCal);
-      heCal[detID]->Fill(eCal);
+      //heCal[detID]->Fill(eCal);
       
       for( int detJ = detID +1; detJ < NCLOVER; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
@@ -151,16 +187,22 @@ void Analyzer::Terminate(){
    heCalVID->Draw("colz");
    
    cCanvas->cd(3);
-   cCanvas->cd(3)->SetLogz(1);
-   hcoin->Draw("colz");
+   //cCanvas->cd(3)->SetLogz(1);
+   //hcoin->Draw("colz");
+   h1->Draw("");
+   heCal[8]->SetLineColor(2);heCal[8]->Draw("same");
+   heCal[9]->SetLineColor(4);heCal[9]->Draw("same");
+   heCal[10]->SetLineColor(6);heCal[10]->Draw("same");
+   heCal[11]->SetLineColor(7);heCal[11]->Draw("same");
    
    cCanvas->cd(4);
-   cCanvas->cd(4)->SetLogz(1);
-   hcoinBGO->Draw("colz");
+   //cCanvas->cd(4)->SetLogz(1);
+   //hcoinBGO->Draw("colz");
+   h2->Draw("");
    
    printf("=============== Analyzer Utility\n");
    gROOT->ProcessLine(".L Analyzer_Utilt.c");
-   gROOT->ProcessLine("listDraws()");
+   //gROOT->ProcessLine("listDraws()");
    
    printf("=============== loaded AutoFit.C\n");
    gROOT->ProcessLine(".L AutoFit.C");
