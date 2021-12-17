@@ -328,11 +328,11 @@ int main(int argc, char **argv) {
         }
         else {
             tdif = subevt[sevtmult].time - etime;
-            if (tdif < 0) {
-                printf("SEVERE ERROR: tdiff < 0, file must be time sorted\n");
-                printf("etime = %lld, time = %lld, and tdif = %lld\n", etime, subevt[sevtmult].time, tdif);                
-                return 0;   
-            }    
+            //if (tdif < 0) {
+            //    printf("SEVERE ERROR: tdiff < 0, file must be time sorted\n");
+            //    printf("etime = %lld, time = %lld, and tdif = %lld\n", etime, subevt[sevtmult].time, tdif);                
+            //    return 0;   
+            //}    
         }    
       
         //Check for end of event, rewind, and break out of while loop

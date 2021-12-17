@@ -9,9 +9,11 @@ xia2ev2*
 pixie2root
 scan
 pxi-time-order
+evt2root
 
 *.so
 *.d
 *.pcm
 
 ti74pt7a
+fsu_run_2021
