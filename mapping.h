@@ -11,8 +11,6 @@ Other  : 200 - 299
 #define NBGO     9
 #define NOTHER  52
 
-#define EVENT_BUILD_TIME 109 // 100 = 1 micro-second ; should be < L + G ~ 5.04 us (note 0.08 us scale factor in set file)
-
 //                 0    1    2    3    4    5    6    7    8    9
 int map[130] = {   0,   1,   2,   3, 100,   4,   5,   6,   7, 101,   //   0
                    8,   9,  10,  11, 102,  -1,  12,  13,  14,  15,   //  10

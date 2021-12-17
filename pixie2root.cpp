@@ -170,7 +170,8 @@ int main(int argc, char **argv) {
   // Check that the corrent number of arguments were provided.
   if (argc != 2 && argc != 3 )    {
     printf("Incorrect number of arguments:\n");
-    printf("%s datafile <outFile>\n", argv[0]);
+    printf("%s [*.to File] [timeWindow] \n", argv[0]);
+    printf("         timeWindow : number of tick, 1 tick = 10 ns. default = 100 \n");       
     return 1;
   }
 
@@ -182,12 +183,15 @@ int main(int argc, char **argv) {
   TString inFileName = argv[1];
   TString outFileName = inFileName;
   
+  int EVENT_BUILD_TIME = 100; 
+  
   if( argc >= 3 ){
-    outFileName = argv[2];
-  }else{
-    outFileName.Remove(inFileName.First('.'));
-    outFileName.Append(".root");
+    EVENT_BUILD_TIME = atoi(argv[2]);
   }
+  
+  outFileName.Remove(inFileName.First('.'));
+  outFileName.Append(".root");
+  
   printf("  in file : %s \n", inFileName.Data());
   printf(" our file : %s \n", outFileName.Data());
 
@@ -199,11 +203,11 @@ int main(int argc, char **argv) {
   TTree * tree = new TTree("tree", "tree");
 
   unsigned long long evID = -1;
-  double  energy[NCLOVER];  
-  unsigned long long etimestamp[NCLOVER];
+  double  energy[NCRYSTAL];  
+  unsigned long long etimestamp[NCRYSTAL];
   double  bgo[NBGO]; 
   double  other[NOTHER];
-  unsigned short pileup[NCLOVER];
+  unsigned short pileup[NCRYSTAL];
   
   //const int maxMulti = 40;
   //double energy[maxMulti];  
@@ -212,10 +216,10 @@ int main(int argc, char **argv) {
   int multi;
 
   tree->Branch("evID", &evID, "event_ID/l"); 
-  ///tree->Branch("detID", detID, Form("det ID[%d]/B", NCLOVER));
-  tree->Branch("e", energy, Form("energy[%d]/D", NCLOVER));
-  tree->Branch("t", etimestamp, Form("energy_time_stamp[%d]/l", NCLOVER));
-  tree->Branch("p", pileup, Form("pile_up_flag[%d]/s", NCLOVER));
+  ///tree->Branch("detID", detID, Form("det ID[%d]/B", NCRYSTAL));
+  tree->Branch("e", energy, Form("energy[%d]/D", NCRYSTAL));
+  tree->Branch("t", etimestamp, Form("energy_time_stamp[%d]/l", NCRYSTAL));
+  tree->Branch("p", pileup, Form("pile_up_flag[%d]/s", NCRYSTAL));
   
   tree->Branch("bgo", bgo, Form("BGO_energy[%d]/D", NBGO));
   tree->Branch("other", other, Form("other_energy[%d]/D", NOTHER));
@@ -249,7 +253,7 @@ int main(int argc, char **argv) {
       /////////////////////////////////
       
       //CERN data clear
-      for( int haha = 0; haha < NCLOVER; haha++){
+      for( int haha = 0; haha < NCRYSTAL; haha++){
          energy[haha] = TMath::QuietNaN();
          etimestamp[haha] = 0;
          pileup[haha] = 0;
@@ -283,7 +287,7 @@ int main(int argc, char **argv) {
         subevt[sevtmult].extra = (sub[3] & 0x80000000) >> 31;       
  
         //rebin raw trap energy from 32k to ....            
-        tempf = (float)subevt[sevtmult].energy/RAWE_REBIN_FACTOR;// + RAND;       
+        tempf = (float)subevt[sevtmult].energy/RAWE_REBIN_FACTOR;// + RAND;
         subevt[sevtmult].energy = (int)tempf;                        
  
         //check lengths (sometimes all of the bits for trace length are turned on ...)
@@ -304,7 +308,7 @@ int main(int argc, char **argv) {
         ///========== need a mapping, can reduce the array size, speed up.
         
         int ch = map[subevt[sevtmult].id];
-        if ( 0 <= ch && ch < NCLOVER ){
+        if ( 0 <= ch && ch < NCRYSTAL ){
             energy[ch] = subevt[sevtmult].energy;
             etimestamp[ch] = subevt[sevtmult].time;
             pileup[ch] = subevt[sevtmult].fcode;
