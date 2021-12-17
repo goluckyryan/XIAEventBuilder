@@ -7,7 +7,7 @@ Other  : 200 - 299
 
 //==================== mapping
 
-#define NCLOVER 36
+#define NCRYSTAL 36
 #define NBGO     9
 #define NOTHER  52
 

@@ -15,6 +15,7 @@
 #include <TSelector.h>
 
 #include "mapping.h"
+#include "AnalysisLibrary.h"
 
 // Header file for the classes stored in the TTree if any.
 
@@ -26,9 +27,9 @@ public :
 
    // Declaration of leaf types
    ULong64_t       evID;
-   Double_t        e[NCLOVER];
-   ULong64_t       t[NCLOVER];
-   UShort_t        p[NCLOVER];
+   Double_t        e[NCRYSTAL];
+   ULong64_t       t[NCRYSTAL];
+   UShort_t        p[NCRYSTAL];
    Double_t        bgo[NBGO];
    Double_t        other[NOTHER];
    Int_t           multi;
@@ -112,49 +113,9 @@ void Analyzer::SlaveTerminate(){
 
 }
 
-
-
-std::vector<std::string> SplitStr(std::string tempLine, std::string splitter, int shift = 0){
-
-  std::vector<std::string> output;
-
-  size_t pos;
-  do{
-    pos = tempLine.find(splitter); /// fine splitter
-    if( pos == 0 ){ ///check if it is splitter again
-      tempLine = tempLine.substr(pos+1);
-      continue;
-    }
-
-    std::string secStr;
-    if( pos == std::string::npos ){
-      secStr = tempLine;
-    }else{
-      secStr = tempLine.substr(0, pos+shift);
-      tempLine = tempLine.substr(pos+shift);
-    }
-
-    ///check if secStr is begin with space
-    while( secStr.substr(0, 1) == " "){
-      secStr = secStr.substr(1);
-    };
-    
-    ///check if secStr is end with space
-    while( secStr.back() == ' '){
-      secStr = secStr.substr(0, secStr.size()-1);
-    }
-
-    output.push_back(secStr);
-    //printf(" |%s---\n", secStr.c_str());
-    
-  }while(pos != std::string::npos );
-
-  return output;
-}
-
 std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
 
-  printf("==================== load correction parameters : %s", corrFile.Data());
+  printf("  load correction parameters : %s", corrFile.Data());
   std::ifstream file;
   file.open(corrFile.Data());
   
@@ -192,13 +153,17 @@ std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
       printf("det : %2d | ", i );
       int len = (int) corr[i].size();
       for( int j = 0; j < len - 1 ; j++){
-        printf("%6.2f, ", corr[i][j]);
+        printf("%14.6f, ", corr[i][j]);
       }
-      printf("%6.2f\n", corr[i][len-1]);
+      printf("%14.6f\n", corr[i][len-1]);
     }
   
   }else{
-    printf(".... fail\n");
+       printf(".... fail\n");
+       std::vector<double> temp = {0, 1};
+       for( int i = 0; i < NCRYSTAL; i++){
+         corr.push_back(temp);
+      }
   }
   
   return corr;
