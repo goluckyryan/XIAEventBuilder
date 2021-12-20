@@ -15,7 +15,7 @@
 #include <TSelector.h>
 
 #include "mapping.h"
-#include "AnalysisLibrary.h"
+#include "armory/AnalysisLibrary.h"
 
 // Header file for the classes stored in the TTree if any.
 

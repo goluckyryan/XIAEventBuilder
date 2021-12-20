@@ -31,7 +31,7 @@
 
 #define RAWE_REBIN_FACTOR 2.0 // Rebin 32k pixie16 spectra to something smaller to fit better into 8k.
 
-#include "mapping.h"  
+#include "../mapping.h"  
 
 /////////////////////
 // RAW EVENT TYPES //

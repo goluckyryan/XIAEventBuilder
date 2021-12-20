@@ -15,8 +15,8 @@
 #include "TCanvas.h"
 #include "TSystem.h"
 
-#include "mapping.h"
-#include "AnalysisLibrary.h"
+#include "../mapping.h"
+#include "../armory/AnalysisLibrary.h"
 
 #define MAX_CRATES 2
 #define MAX_BOARDS_PER_CRATE 13

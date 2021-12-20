@@ -179,9 +179,9 @@ void Analyzer::Terminate(){
    hcoinBGO->Draw("colz");
 
    printf("=============== loaded AutoFit.C, try showFitMethos()\n");
-   gROOT->ProcessLine(".L AutoFit.C");   
+   gROOT->ProcessLine(".L armory/AutoFit.C");   
    printf("=============== Analyzer Utility\n");
-   gROOT->ProcessLine(".L Analyzer_Utili.c");
+   gROOT->ProcessLine(".L armory/Analyzer_Utili.c");
    gROOT->ProcessLine("listDraws()");
    
 
