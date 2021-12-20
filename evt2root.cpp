@@ -83,15 +83,6 @@ int main(int argn, char **argv) {
   
   printf("====================================\n");
 
-  TFile * outFile = new TFile(outFileName, "recreate");
-  TTree * tree = new TTree("tree", "tree");
-  
-  tree->Branch("evID", &measureID, "data_ID/l"); 
-  tree->Branch("detID",     &data.id, "det_ID/s");
-  tree->Branch("e",     &data.energy, "energy/s");
-  tree->Branch("t",       &data.time, "time_stamp/l");
-  
-
   FILE * inFile = fopen(inFileName, "r");
   if( inFile == NULL ){
     printf("Cannot read file : %s \n", inFileName.Data());
@@ -100,16 +91,33 @@ int main(int argn, char **argv) {
 
   //get file size
   fseek(inFile, 0L, SEEK_END);
-  long int fprsize = ftell(inFile);
+  long int inFileSize = ftell(inFile);
   rewind(inFile); ///back to the File begining
+
+  printf(" in file: %s\n", inFileName.Data());
+  printf("out file: %s\n", outFileName.Data());
+  printf("--------------------------------\n");
+  
+  TFile * outFile = new TFile(outFileName, "recreate");
+  TTree * tree = new TTree("tree", "tree");
+  
+  tree->Branch("evID", &measureID, "data_ID/l"); 
+  tree->Branch("detID",     &data.id, "det_ID/s");
+  tree->Branch("e",     &data.energy, "energy/s");
+  tree->Branch("t",       &data.time, "time_stamp/l");
+  
+//=======TODO online event building
 
   unsigned int header[4]; //read 4 header, unsigned int = 4 byte = 32 bits.  
   unsigned long long nWords = 0;
+  unsigned long long fpos = 0;
 
   //=============== Read File
-  while ( ! feof(inFile) ){
+//  while ( ! feof(inFile) ){
+  while ( fpos <= inFileSize ){ // need to check is the last data included.
 
     fread(header, sizeof(header), 1, inFile);
+    fpos += sizeof(header);
     measureID ++;
     
     /// see the Pixie-16 user manual, Table4-2
@@ -121,7 +129,7 @@ int main(int argn, char **argv) {
     data.pileup       =  header[0] >> 31 ;
     data.time         = ((ULong64_t)(header[2] & 0xFFFF) << 32) + header[1];
     data.cfd          =  header[2] >> 16 ; 
-    data.energy       =  header[3] & 0xFF;
+    data.energy       =  header[3] & 0xFFFF;
     data.trace_length = (header[3] >> 16) & 0x7FFF;
     data.trace_out_of_range =  header[3] >> 31;
     
@@ -129,30 +137,27 @@ int main(int argn, char **argv) {
     
     nWords += data.eventLength;
     
-    ///printf("----------------------%llu\n", nWords);
-    ///for(int i = 0; i < 4; i++){
-    ///  printf("  %x\n", header[i]);
-    ///}
-    ///data.Print();
-    
+    //printf("----------------------nWords: %llu, fpos: %llu\n", nWords, fpos);
+    //for(int i = 0; i < 4; i++){
+    //  printf("  %x\n", header[i]);
+    //}
+    //data.Print();
     
     //=== jump to next measurement
     if( data.eventLength > 4 ){
       fseek(inFile, sizeof(int) * (data.eventLength-4),  SEEK_CUR);
+      fpos += sizeof(int) * (data.eventLength-4);
     }
-    
-    //if( nWords > 200 ) break;
-
-
+  
     //event stats, print status every 10000 events
     if ( measureID % 10000 == 0 ) {
       fprpos = ftell(inFile);
-      float tempf = (float)fprsize/(1024.*1024.*1024.);
+      float tempf = (float)inFileSize/(1024.*1024.*1024.);
       gClock.Stop("timer");
       double time = gClock.GetRealTime("timer");
       gClock.Start("timer");
       printf("Total measurements: \x1B[32m%llu \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
-                   measureID, (100*fprpos/fprsize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   measureID, (100*fprpos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
     }   
     
     //cern fill tree
@@ -165,9 +170,9 @@ int main(int argn, char **argv) {
   gClock.Stop("timer");
   double time = gClock.GetRealTime("timer");
   gClock.Start("timer");
-  float tempf = (float)fprsize/(1024.*1024.*1024.);
+  float tempf = (float)inFileSize/(1024.*1024.*1024.);
   printf("Total measurements: \x1B[32m%llu \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\r", 
-                   measureID, (100*fprpos/fprsize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   measureID, (100*fprpos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
 
   fclose(inFile);
 

@@ -10,6 +10,7 @@ pixie2root
 scan
 pxi-time-order
 evt2root
+evt2hist
 
 *.so
 *.d
