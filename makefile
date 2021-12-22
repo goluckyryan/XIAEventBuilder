@@ -2,7 +2,7 @@ CC=g++
 
 #all: xia2root  xia2ev2_nopart pixie2root scan pxi-time-order
 #all: xia2root  xia2ev2_nopart pixie2root scan evt2root evt2hist
-all: xia2root  pixie2root evt2root evt2hist
+all: xia2root  pixie2root evt2root evt2hist pxi-time-order
 
 #this is FSU evt to root
 xia2root: armory/xia2root.cpp
@@ -23,5 +23,5 @@ evt2root: armory/evt2root.cpp
 evt2hist: armory/evt2hist.cpp
 	$(CC) armory/evt2hist.cpp -o evt2hist `root-config --cflags --glibs`
 
-#pxi-time-order: pxi-time-order.c
-#	$(CC) pxi-time-order.c -o pxi-time-order 
+pxi-time-order: armory/pxi-time-order.c
+	$(CC) armory/pxi-time-order.c -o pxi-time-order 

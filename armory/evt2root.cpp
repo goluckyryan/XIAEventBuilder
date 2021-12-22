@@ -31,6 +31,8 @@ public:
   UShort_t     trace_length;
   Bool_t trace_out_of_range;
   
+  Long64_t   timeDiff;  
+  
   UShort_t id;
   
   measurment(){};
@@ -46,6 +48,7 @@ public:
     energy = 0;
     trace_length = 0;
     trace_out_of_range = 0;
+    timeDiff = 0;
     id = 0;
   }
   
@@ -72,12 +75,12 @@ int main(int argn, char **argv) {
   outFileName.Remove(inFileName.First('.'));
   outFileName.Append("_raw.root");
   
-  long int inFilePos;
+  long int inFilePos = 0;
   TBenchmark gClock;
   gClock.Reset();
   gClock.Start("timer");
   
-  ULong64_t measureID = 0;
+  Long64_t measureID = -1;
   
   measurment data;
   
@@ -102,23 +105,26 @@ int main(int argn, char **argv) {
   TFile * outFile = new TFile(outFileName, "recreate");
   TTree * tree = new TTree("tree", "tree");
   
-  tree->Branch("evID", &measureID, "data_ID/l"); 
+  tree->Branch("evID",    &measureID, "data_ID/L"); 
   tree->Branch("detID",     &data.id, "det_ID/s");
   tree->Branch("e",     &data.energy, "energy/s");
   tree->Branch("t",       &data.time, "time_stamp/l");
+  //tree->Branch("tdiff", &data.timeDiff, "time_Diff/L");
   
 //=======TODO online event building
 
   unsigned int header[4]; //read 4 header, unsigned int = 4 byte = 32 bits.  
   unsigned long long nWords = 0;
+  
+  ULong64_t timeLast = 0;
 
   //=============== Read File
   ///  while ( ! feof(inFile) ){
-  while ( inFilePos <= inFileSize ){ // need to check is the last data included.
+  while ( inFilePos <= inFileSize ){
 
     fread(header, sizeof(header), 1, inFile);
     inFilePos = ftell(inFile);
-    measureID ++;
+    measureID ++; 
     
     /// see the Pixie-16 user manual, Table4-2
     data.ch =  header[0] & 0xF ;
@@ -137,11 +143,20 @@ int main(int argn, char **argv) {
     
     nWords += data.eventLength;
     
-    ///printf("----------------------nWords: %llu, inFilePos: %llu\n", nWords, inFilePos);
-    ///for(int i = 0; i < 4; i++){
-    ///  printf("  %x\n", header[i]);
-    ///}
-    ///data.Print();
+    //if( measureID == 0 ) {
+    //  data.timeDiff = 0;
+    //}else{
+    //  data.timeDiff = (Long64_t) data.time - timeLast;
+    //}
+    //timeLast = data.time;
+    
+    //if( data.timeDiff == false ){
+    //  printf("----------------------nWords: %llu, inFilePos: %lu\n", nWords, inFilePos);
+    //  for(int i = 0; i < 4; i++){
+    //    printf("  %x\n", header[i]);
+    //  }
+    //  data.Print();
+    //}
     
     //=== jump to next measurement
     if( data.eventLength > 4 ){
@@ -156,7 +171,7 @@ int main(int argn, char **argv) {
       gClock.Stop("timer");
       double time = gClock.GetRealTime("timer");
       gClock.Start("timer");
-      printf("Total measurements: \x1B[32m%llu \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
+      printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
                    measureID, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
     }   
     
@@ -171,7 +186,7 @@ int main(int argn, char **argv) {
   double time = gClock.GetRealTime("timer");
   gClock.Start("timer");
   float tempf = (float)inFileSize/(1024.*1024.*1024.);
-  printf("Total measurements: \x1B[32m%llu \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\r", 
+  printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\r", 
                    measureID, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
 
   fclose(inFile);

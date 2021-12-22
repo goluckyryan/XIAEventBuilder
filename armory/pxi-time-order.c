@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
 
   //Get memory for default number of subevents per channel id
   for (i=0; i<MAX_ID; i++){
-    subevents[i] = malloc(sizeof(struct subevent)*DEF_SUB_EVENTS);
+    subevents[i] = (struct subevent *)malloc(sizeof(struct subevent)*DEF_SUB_EVENTS);
     if (subevents[i] == NULL) {
       printf("malloc failed\n");
       return -1;
@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
 	if (maxevts[id] == M5_SUB_EVENTS) {evts_old = M5_SUB_EVENTS; evts_new = MAX_SUB_EVENTS;}
 
 	if (maxevts[id]==evts_old && totmem + (evts_new-evts_old)*(sizeof(struct subevent) + sizeof(unsigned int)*length) < MAX_MALLOC) {
-	  subevents[id] = realloc(subevents[id], sizeof(struct subevent)*evts_new);  
+	  subevents[id] = (struct subevent *) realloc(subevents[id], sizeof(struct subevent)*evts_new);  
 	  if (subevents[id] == NULL) {
 	    printf("realloc failed\n");
 	    return -1;
@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
 	  if (iptr[id] + nevts[id] > evts_old) {
 	    for (j=0; j<iptr[id] + nevts[id] - evts_old; j++) {
 	      if (subevents[id][evts_old+j].data == NULL) {
-		subevents[id][evts_old+j].data = malloc(sizeof(unsigned int)*subevents[id][j].length);
+		subevents[id][evts_old+j].data = (unsigned int *)malloc(sizeof(unsigned int)*subevents[id][j].length);
 		if (subevents[id][evts_old+j].data == NULL) {
 		  printf("malloc failed\n");
 		  return -1;
@@ -318,7 +318,7 @@ int main(int argc, char **argv) {
 	subevents[id][j].timestamp = time;
 
 	if (subevents[id][j].data == NULL) {
-	  subevents[id][j].data = malloc(sizeof(unsigned int)*length);
+	  subevents[id][j].data = (unsigned int * )malloc(sizeof(unsigned int)*length);
 	  if (subevents[id][j].data == NULL) {
 	    printf("malloc failed\n");
 	    return -1;
@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
 	  totmem += sizeof(unsigned int)*length;
 	}    
 	else if (length != subevents[id][j].length) { //not needed anymore since always free data after use now. Keep for future ...
-	  subevents[id][j].data = realloc(subevents[id][j].data, sizeof(unsigned int)*length);
+	  subevents[id][j].data = (unsigned int *)realloc(subevents[id][j].data, sizeof(unsigned int)*length);
 	  if (subevents[id][j].data == NULL) {
 	    printf("realloc failed\n");
 	    return -1;
@@ -402,8 +402,7 @@ int main(int argc, char **argv) {
    
 
     //print statistics
-    e_div=div(evts_tot_read,10000);
-    if ( e_div.rem == 0) 
+    if ( evts_tot_read % 10000 == 0) 
       printf("Malloc (%d MB) : evts in (\x1B[34m%lld\x1B[0m) : evts out (\x1B[32m%lld\x1B[0m) : diff (\x1B[31m%lld\x1B[0m)\r", (totmem)/1024/1024, evts_tot_read, evts_tot_write, evts_tot_read-evts_tot_write); 
         
   } //end main while 
