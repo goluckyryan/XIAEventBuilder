@@ -41,6 +41,7 @@ TH2F * heCalVID;
 TH1F * heCal[NCRYSTAL]; 
 TH2F * hcoinBGO;
 
+//############################################ BEGIN
 void Analyzer::Begin(TTree * tree){
 
    TString option = GetOption();
@@ -77,7 +78,7 @@ void Analyzer::Begin(TTree * tree){
    printf("======================== Start processing....\n");
 
 }
-
+//############################################ PROCESS
 Bool_t Analyzer::Process(Long64_t entry){
 
    ProcessedEntries++;
@@ -148,7 +149,7 @@ Bool_t Analyzer::Process(Long64_t entry){
    
    return kTRUE;
 }
-
+//############################################ TERMINATE
 void Analyzer::Terminate(){
 
    printf("============================== finishing.\n");

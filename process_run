@@ -36,7 +36,6 @@ fileList=$(ls *.evt)
 numFile=$(ls -lhtr *.evt | wc -l)
 count=0
 
-
 cd $DIR
 
 for a in $fileList 

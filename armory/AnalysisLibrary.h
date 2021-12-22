@@ -6,6 +6,7 @@
 #include <TSpectrum.h>
 #include <TMath.h>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 
@@ -280,7 +281,7 @@ std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
   }else{
        printf(".... fail\n");
        std::vector<double> temp = {0, 1};
-       for( int i = 0; i < NCRYSTAL; i++){
+       for( int i = 0; i < 36; i++){
          corr.push_back(temp);
       }
   }
