@@ -63,10 +63,9 @@ public:
 //#############################################
 int main(int argn, char **argv) {
     
-  if (argn != 2 && argn != 3 )    {
+  if (argn != 2  )    {
     printf("Usage :\n");
-    printf("%s [evt File] [timeWindow] \n", argv[0]);
-    printf("         timeWindow : number of tick, 1 tick = 10 ns. default = 100 \n");       
+    printf("%s [evt File] \n", argv[0]);
     return 1;
   }
   
@@ -75,7 +74,6 @@ int main(int argn, char **argv) {
   outFileName.Remove(inFileName.First('.'));
   outFileName.Append("_raw.root");
   
-  long int inFilePos = 0;
   TBenchmark gClock;
   gClock.Reset();
   gClock.Start("timer");
@@ -96,6 +94,7 @@ int main(int argn, char **argv) {
   fseek(inFile, 0L, SEEK_END);
   long int inFileSize = ftell(inFile);
   rewind(inFile); ///back to the File begining
+  long int inFilePos = 0;
 
   printf(" in file: %s\n", inFileName.Data());
   printf("out file: %s\n", outFileName.Data());
@@ -106,21 +105,20 @@ int main(int argn, char **argv) {
   TTree * tree = new TTree("tree", "tree");
   
   tree->Branch("evID",    &measureID, "data_ID/L"); 
-  tree->Branch("detID",     &data.id, "det_ID/s");
+  tree->Branch("id",        &data.id, "ID/s");
   tree->Branch("e",     &data.energy, "energy/s");
-  tree->Branch("t",       &data.time, "time_stamp/l");
+  tree->Branch("t",       &data.time, "timestamp/l");
   //tree->Branch("tdiff", &data.timeDiff, "time_Diff/L");
   
-//=======TODO online event building
 
   unsigned int header[4]; //read 4 header, unsigned int = 4 byte = 32 bits.  
   unsigned long long nWords = 0;
   
-  ULong64_t timeLast = 0;
+  //ULong64_t timeLast = 0;
 
   //=============== Read File
   ///  while ( ! feof(inFile) ){
-  while ( inFilePos <= inFileSize ){
+  while( inFilePos < inFileSize || feof(inFile) ){
 
     fread(header, sizeof(header), 1, inFile);
     inFilePos = ftell(inFile);
@@ -166,13 +164,12 @@ int main(int argn, char **argv) {
   
     //event stats, print status every 10000 events
     if ( measureID % 10000 == 0 ) {
-      inFilePos = ftell(inFile);
       float tempf = (float)inFileSize/(1024.*1024.*1024.);
       gClock.Stop("timer");
       double time = gClock.GetRealTime("timer");
       gClock.Start("timer");
       printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
-                   measureID, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   measureID +1 , (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
     }   
     
     //cern fill tree
@@ -187,7 +184,7 @@ int main(int argn, char **argv) {
   gClock.Start("timer");
   float tempf = (float)inFileSize/(1024.*1024.*1024.);
   printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\r", 
-                   measureID, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   measureID+1, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
 
   fclose(inFile);
 

@@ -168,10 +168,11 @@ int main(int argn, char **argv) {
     ///}
     ///data.Print();
     
-    int detID = map[data.id];
+    int detID = mapping[data.id];
     if( 0 <= detID && detID < 100 ){
       if( corrFile != ""){
-        double eCal = ApplyCorrection(corr, detID, data.energy);      
+        //double eCal = ApplyCorrection(corr, detID, data.energy);      
+        double eCal = corr[detID][0] + corr[detID][1]*data.energy;
         he[detID]->Fill(eCal);
       }else{
         he[detID]->Fill(data.energy);
@@ -230,7 +231,7 @@ int main(int argn, char **argv) {
   fclose(inFile);
   
   printf("\n============= reasched end of file\n");
-  printf("Crtl+C to end program.\n");
+  printf("\nCrtl+C to end program.\n");
   app->Run();
 
 

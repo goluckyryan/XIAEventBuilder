@@ -19,15 +19,15 @@ public :
 
    // Declaration of leaf types
    Long64_t        evID;
-   UShort_t        detID;
+   UShort_t        ID;
    UShort_t        e;
    ULong64_t       t;
 
    // List of branches
    TBranch        *b_data_ID;   //!
-   TBranch        *b_det_ID;   //!
+   TBranch        *b_ID;   //!
    TBranch        *b_energy;   //!
-   TBranch        *b_time_stamp;   //!
+   TBranch        *b_timestamp;   //!
 
    Monitor_raw(TTree * /*tree*/ =0) : fChain(0) { }
    virtual ~Monitor_raw() { }
@@ -59,9 +59,9 @@ void Monitor_raw::Init(TTree *tree)
    fChain->SetMakeClass(1);
 
    fChain->SetBranchAddress("evID", &evID, &b_data_ID);
-   fChain->SetBranchAddress("detID", &detID, &b_det_ID);
-   fChain->SetBranchAddress("e", &e, &b_energy);
-   fChain->SetBranchAddress("t", &t, &b_time_stamp);
+   fChain->SetBranchAddress("id",     &ID, &b_ID);
+   fChain->SetBranchAddress("e",       &e, &b_energy);
+   fChain->SetBranchAddress("t",       &t, &b_timestamp);
 }
 
 Bool_t Monitor_raw::Notify()

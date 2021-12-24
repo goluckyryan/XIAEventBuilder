@@ -29,7 +29,7 @@ vector<vector<double>> eCorr;
 
 //############################################ histogram declaration
 
-TH2F * heVID;
+TH2F * hevID;
 TH1F * he[NCRYSTAL];
 
 TH2F * hgg[NCRYSTAL][NCRYSTAL];
@@ -37,7 +37,7 @@ TH2F * hgg[NCRYSTAL][NCRYSTAL];
 TH2F * hcoin;
 
 ///----- after calibration and BGO veto
-TH2F * heCalVID;
+TH2F * heCalvID;
 TH1F * heCal[NCRYSTAL]; 
 TH2F * hcoinBGO;
 
@@ -50,8 +50,12 @@ void Analyzer::Begin(TTree * tree){
 
    printf("======================== Histograms declaration\n");
    
-   heVID    = new TH2F("heVID",                                              "e vs ID; det ID; e [ch]", NCRYSTAL, 0, NCRYSTAL, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
-   heCalVID = new TH2F("heCalVID", Form("eCal vs ID (BGO veto > %.1f); det ID; Energy [keV]", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+   hevID    = new TH2F("hevID",                                              "e vs ID; det ID; e [ch]", NCRYSTAL, 0, NCRYSTAL, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
+   heCalvID = new TH2F("heCalvID", Form("eCal vs ID (BGO veto > %.1f); det ID; Energy [keV]", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+   
+   hevID->SetNdivisions(-409, "X");
+   heCalvID->SetNdivisions(-409, "X");
+   
    for( int i = 0; i < NCRYSTAL; i ++){
       he[i]    = new TH1F(   Form("he%02d", i),                                  Form("e -%02d", i), rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
       heCal[i] = new TH1F(Form("heCal%02d", i), Form("eCal -%02d (BGO veto > %.1f); Energy [keV];  count / %d keV", i, BGO_threshold, energyRange[0]), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
@@ -110,7 +114,7 @@ Bool_t Analyzer::Process(Long64_t entry){
       //if( pileup[detID] == 1 ) continue;
       
       //======== Fill raw data
-      heVID->Fill( detID, e[detID]);
+      hevID->Fill( detID, e[detID]);
       he[detID]->Fill(e[detID]);
       
       
@@ -137,7 +141,7 @@ Bool_t Analyzer::Process(Long64_t entry){
       }
       
       
-      heCalVID->Fill( detID, eCal);
+      heCalvID->Fill( detID, eCal);
       heCal[detID]->Fill(eCal);
       
       for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
@@ -165,11 +169,11 @@ void Analyzer::Terminate(){
 
    cCanvas->cd(1);
    cCanvas->cd(1)->SetLogz(1);
-   heVID->Draw("colz");
+   hevID->Draw("colz");
 
    cCanvas->cd(2);
    cCanvas->cd(2)->SetLogz(1);
-   heCalVID->Draw("colz");
+   heCalvID->Draw("colz");
    
    cCanvas->cd(3);
    cCanvas->cd(3)->SetLogz(1);

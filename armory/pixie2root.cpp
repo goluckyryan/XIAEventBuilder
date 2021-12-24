@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
         
         ///========== need a mapping, can reduce the array size, speed up.
         
-        int ch = map[subevt[sevtmult].id];
+        int ch = mapping[subevt[sevtmult].id];
         if ( 0 <= ch && ch < NCRYSTAL ){
             energy[ch] = subevt[sevtmult].energy;
             etimestamp[ch] = subevt[sevtmult].time;
