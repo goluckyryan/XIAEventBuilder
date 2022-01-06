@@ -12,6 +12,7 @@ pxi-time-order
 evt2root
 evt2hist
 ev22txt
+EventBuilder
 
 *.so
 *.d
