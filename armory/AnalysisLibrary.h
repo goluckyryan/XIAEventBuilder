@@ -233,7 +233,7 @@ std::vector<std::vector<double>> FindMatchingPair(std::vector<double> enX, std::
 }
 
 
-std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
+std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile, bool show=false){
 
   printf("  load correction parameters : %s", corrFile.Data());
   std::ifstream file;
@@ -268,14 +268,16 @@ std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile){
     file.close();
     
     printf(".... done\n");
-    printf("===== correction parameters \n");
-    for( int i = 0; i < (int) corr.size(); i++){
-      printf("det : %2d | ", i );
-      int len = (int) corr[i].size();
-      for( int j = 0; j < len - 1 ; j++){
-        printf("%14.6f, ", corr[i][j]);
+    if( show ){
+      printf("===== correction parameters \n");
+      for( int i = 0; i < (int) corr.size(); i++){
+        printf("det : %2d | ", i );
+        int len = (int) corr[i].size();
+        for( int j = 0; j < len - 1 ; j++){
+          printf("%14.6f, ", corr[i][j]);
+        }
+        printf("%14.6f\n", corr[i][len-1]);
       }
-      printf("%14.6f\n", corr[i][len-1]);
     }
   
   }else{

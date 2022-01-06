@@ -79,12 +79,11 @@ public :
    Float_t Frac; ///Progress bar
    TStopwatch StpWatch;
 
+   void Save2ev2();
    bool saveEV2;
    FILE * outEV2;
    TString outEV2Name;
-
-
-
+   double eCal[NCRYSTAL];
 };
 
 #endif
@@ -108,15 +107,18 @@ void Analyzer::Init(TTree *tree)
    fChain->SetBranchAddress("evID",   &evID, &b_event_ID);
    fChain->SetBranchAddress("e",          e, &b_energy);
    fChain->SetBranchAddress("e_t",      e_t, &b_time);
-   fChain->SetBranchAddress("p",          p, &b_pileup);
-   fChain->SetBranchAddress("hit",      hit, &b_hit);
+   //fChain->SetBranchAddress("p",          p, &b_pileup);
+   //fChain->SetBranchAddress("hit",      hit, &b_hit);
    fChain->SetBranchAddress("bgo",      bgo, &b_bgo);
    fChain->SetBranchAddress("bgo_t",  bgo_t, &b_bgoTime);
    fChain->SetBranchAddress("other",  other, &b_other);
    fChain->SetBranchAddress("multi", &multi, &b_multi);
 
+   TString option = GetOption();
+   if ( option != "" ) outEV2Name = option;
+
    if( saveEV2 ){
-      printf("======================== Create output ev2 : %s\n", outEV2Name.Data());
+      printf("======================== Create output ev2 : \033[1;31m%s\033[0m\n", outEV2Name.Data());
       outEV2 = fopen(outEV2Name.Data(), "w+");
    }  
 
@@ -148,6 +150,44 @@ void Analyzer::SlaveBegin(TTree * /*tree*/){
 
 void Analyzer::SlaveTerminate(){
 
+}
+
+void Analyzer::Save2ev2(){
+   short *  out0 = new short[1];
+   short *  outa = new short[1];
+   short * outb = new short[1];
+
+   int count = 0;
+   for (int i = 0; i < NCRYSTAL ; i++){
+      if( !TMath::IsNaN(eCal[i]) ) count++;
+   }
+
+   out0[0] = count;
+   fwrite(out0, 1, 1, outEV2); 
+
+   for( int i = 0; i < count; i++){
+      if( TMath::IsNaN(eCal[i]) ) continue;
+      outa[0] = i;
+      fwrite(outa, 1, 1, outEV2); 
+      outb[0] = eCal[i];
+      fwrite(outb, 2, 1, outEV2); 
+   }
+
+   fwrite(out0, 1, 1, outEV2); 
+   
+      
+   /**
+   int len = (int) gatedID.size();
+   char out[2*len+2];
+   out[0] = numGatedData;
+   for( int i = 0; i < (int) gatedID.size(); i++){
+      int id = gatedID[i];
+      out[2*i+1] = id;
+      out[2*i+2] = eCal[id];
+   }
+   out[2*len+1]=numGatedData;
+   fwrite(out,3*len+2,sizeof(out),outEV2);
+   */ 
 }
 
 #endif // #ifdef Analyzer_cxx

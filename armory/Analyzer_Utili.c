@@ -2,7 +2,7 @@ void listDraws(void) {
   printf("------------------- List of Plots -------------------\n");
   printf("  newCanvas() - Create a new Canvas\n");
   printf("-----------------------------------------------------\n");
-  printf("    rawEvID() - e vs ID\n");
+  printf("       eVID() - e vs ID\n");
   printf("      drawE() - e for all %d detectors\n", NCRYSTAL);
   //printf("     drawGG() - Gamma - Gamma Coincident for all %d detectors\n", NCRYSTAL);
   printf("-----------------------------------------------------\n");
@@ -18,12 +18,16 @@ void newCanvas(int sizeX = 800, int sizeY = 600, int posX = 0, int posY = 0){
   cNewCanvas->cd();
 }
 
-//void rawEvID(bool cal = false){
-//  TCanvas * cRawID = (TCanvas *) gROOT->FindObjectAny("cRawID");
-//  if( cRawID == NULL ) cRawID = new TCanvas("cRawID", "raw ID", 1000, 800);
-//  cRawID->cd(1)->SetGrid();
-//  cal ? heCalVID->Draw("colz") : heVID->Draw("colz");
-//}
+void eVID(bool cal = false, bool logz = false){
+  TCanvas * cRawID = (TCanvas *) gROOT->FindObjectAny("cRawID");
+  if( cRawID == NULL ) cRawID = new TCanvas("cRawID", "raw ID", 1000, 800);
+  
+  if( cRawID->GetShowEventStatus() == 0 ) cRawID->ToggleEventStatus();
+  
+  cRawID->cd(1)->SetGrid();
+  if( logz ) cRawID->cd(1)->SetLogz();
+  cal ? heCalVID->Draw("colz") : heVID->Draw("colz");
+}
 
 void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMin = 0, double xMax = 0){
 
@@ -39,10 +43,16 @@ void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMi
 
    TCanvas *cRawE = (TCanvas *) gROOT->FindObjectAny("cRawE");
    if( cRawE == NULL ) cRawE = new TCanvas("cRawE", cali ? "Cal e" : "Raw e", size * nClover, size * nCrystalPerClover);
+   
+   if( cRawE->GetShowEventStatus() == 0 ) cRawE->ToggleEventStatus();
+   
    cRawE->Clear();
-   if( CloverID >= 0 ) nClover = 1;
-   cRawE->Divide(nClover, nCrystalPerClover, 0);
-
+   if( CloverID >= 0 ) {
+      nClover = 1;
+      cRawE->Divide(nClover, 1);
+   }else{
+      cRawE->Divide(nClover, nCrystalPerClover, 0);
+   }
    
    ///find max y
    double maxY = 0;
@@ -56,6 +66,18 @@ void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMi
    ///printf("max Y : %f \n", maxY);
 
    for (Int_t i = 0; i < nClover; i++) {
+      
+      int hID = nCrystalPerClover * CloverID + i ;
+      if( cali ) {
+         heCal[hID]->SetMaximum(maxY);
+         heCal[hID]->Draw("");
+      }else{
+         he[hID]->SetMaximum(maxY);
+         he[hID]->Draw("");
+      }
+      
+      
+      /*
       for( Int_t j = 0; j < nCrystalPerClover; j++){
          int canvasID = CloverID < 0 ? nClover*j+ i + 1 : j + 1;
          cRawE->cd(canvasID); 
@@ -75,7 +97,7 @@ void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMi
             he[hID]->SetMaximum(maxY);
             he[hID]->Draw("");
          }
-      }
+      }*/
    }
    
    cRawE->SetCrosshair(1);

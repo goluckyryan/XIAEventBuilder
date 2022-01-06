@@ -12,18 +12,20 @@
 //############################################ User setting
 
 int rawEnergyRange[2] = {0,  6000}; // in ch
-int energyRange[3] = {1, 0, 6000}; // keV {resol, min, max}
+int energyRange[3] = {1, 50, 2000}; // keV {resol, min, max}
 
 double BGO_threshold = 0; // in ch
 
-TString e_corr = "";//"correction_e.dat";
+TString e_corr = "correction_e.dat";
+
+bool save_ev2 = true;
 
 //############################################ end of user setting
 
 
 //############################################ histogram declaration
 
-TH2F * hevID;
+TH2F * heVID;
 TH1F * he[NCRYSTAL];
 
 TH2F * hgg[NCRYSTAL][NCRYSTAL];
@@ -31,7 +33,7 @@ TH2F * hgg[NCRYSTAL][NCRYSTAL];
 TH2F * hcoin;
 
 ///----- after calibration and BGO veto
-TH2F * heCalvID;
+TH2F * heCalVID;
 TH1F * heCal[NCRYSTAL]; 
 TH2F * hcoinBGO;
 
@@ -51,11 +53,11 @@ void Analyzer::Begin(TTree * tree){
 
    printf("======================== Histograms declaration\n");
    
-   hevID    = new TH2F("hevID",                                              "e vs ID; det ID; e [ch]", NCRYSTAL, 0, NCRYSTAL, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
-   heCalvID = new TH2F("heCalvID", Form("eCal vs ID (BGO veto > %.1f); det ID; Energy [keV]", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+   heVID    = new TH2F("heVID",                                              "e vs ID; det ID; e [ch]", NCRYSTAL, 0, NCRYSTAL, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
+   heCalVID = new TH2F("heCalVID", Form("eCal vs ID (BGO veto > %.1f); det ID; Energy [keV]", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
    
-   hevID->SetNdivisions(-409, "X");
-   heCalvID->SetNdivisions(-409, "X");
+   heVID->SetNdivisions(-409, "X");
+   heCalVID->SetNdivisions(-409, "X");
    
    for( int i = 0; i < NCRYSTAL; i ++){
       he[i]    = new TH1F(   Form("he%02d", i),                                  Form("e -%02d", i), rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
@@ -75,13 +77,14 @@ void Analyzer::Begin(TTree * tree){
    hcoinBGO = new TH2F("hcoinBGO", Form("detector coin. (BGO veto > %.1f); det ID; det ID", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, NCRYSTAL, 0 , NCRYSTAL); 
    hcrystalBGO = new TH2F("hcrystalBGO", Form("crystal vs BGO ; det ID; BGO ID"), NCRYSTAL, 0, NCRYSTAL, NBGO, 0 , NBGO); 
    
-   printf("======================== End of histograms declaration\n");
-   
    printf("======================== Load parameters.\n");
    
    eCorr = LoadCorrectionParameters(e_corr); 
+   
+   saveEV2 = save_ev2;
 
 }
+
 //############################################ PROCESS
 Bool_t Analyzer::Process(Long64_t entry){
 
@@ -99,8 +102,8 @@ Bool_t Analyzer::Process(Long64_t entry){
 
    b_energy->GetEntry(entry);
    b_time->GetEntry(entry);
-   b_pileup->GetEntry(entry);
-   b_hit->GetEntry(entry);
+   //b_pileup->GetEntry(entry);
+   //b_hit->GetEntry(entry);
    b_bgo->GetEntry(entry);
    b_bgoTime->GetEntry(entry);
    b_other->GetEntry(entry);
@@ -108,10 +111,7 @@ Bool_t Analyzer::Process(Long64_t entry){
    
    if( multi == 0 ) return kTRUE;
    
-   int numGatedData=0;
-   vector<int> gatedID;
-   gatedID.clear();
-   double eCal[NCRYSTAL] ={0.0};
+   for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
 
    ///=========== Looping Crystals
    for( int detID = 0; detID < NCRYSTAL ; detID ++){
@@ -121,7 +121,7 @@ Bool_t Analyzer::Process(Long64_t entry){
       //if( pileup[detID] == 1 ) continue;
       
       //======== Fill raw data
-      hevID->Fill( detID, e[detID]);
+      heVID->Fill( detID, e[detID]);
       he[detID]->Fill(e[detID]);
       
       for( int kk = 0 ; kk < NBGO; kk++){
@@ -142,20 +142,19 @@ Bool_t Analyzer::Process(Long64_t entry){
             return kTRUE;
          }
       }
-   
-      //----- for ev2 file
-      if( saveEV2 ){
-         numGatedData ++;
-         gatedID.push_back(detID);
-      }
       
       //========= apply correction
-      int order = (int) eCorr[detID].size();
-      for( int i = 0; i < order ; i++){
-         eCal[detID] += eCorr[detID][i] * TMath::Power(e[detID], i);
+      //int order = (int) eCorr[detID].size();
+      //for( int i = 0; i < order ; i++){
+      //   eCal[detID] += eCorr[detID][i] * TMath::Power(e[detID], i);
+      //}
+      if( e_corr == "" ){
+         eCal[detID] = e[detID];
+      }else{
+         eCal[detID] = eCorr[detID][0] + eCorr[detID][1] * e[detID];
       }
-            
-      heCalvID->Fill( detID, eCal[detID]);
+      
+      heCalVID->Fill( detID, eCal[detID]);
       heCal[detID]->Fill(eCal[detID]);
       
       for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
@@ -165,38 +164,7 @@ Bool_t Analyzer::Process(Long64_t entry){
    }
    
    
-   if ( saveEV2){
-      
-      short *  out0 = new short[1];
-      short *  outa = new short[1];
-      short * outb = new short[1];
-      
-      out0[0] = numGatedData;
-      fwrite(out0, 1, 1, outEV2); 
-      
-      for( int i = 0; i < (int) gatedID.size(); i++){
-         int id = gatedID[i];
-         outa[0] = id;
-         fwrite(outa, 1, 1, outEV2); 
-         outb[0] = eCal[id];
-         fwrite(outb, 2, 1, outEV2); 
-      }
-      
-      fwrite(out0, 1, 1, outEV2); 
-      
-      /**
-      int len = (int) gatedID.size();
-      char out[2*len+2];
-      out[0] = numGatedData;
-      for( int i = 0; i < (int) gatedID.size(); i++){
-         int id = gatedID[i];
-         out[2*i+1] = id;
-         out[2*i+2] = eCal[id];
-      }
-      out[2*len+1]=numGatedData;
-      fwrite(out,3*len+2,sizeof(out),outEV2);
-      */ 
-   }  
+   if ( saveEV2) Save2ev2();
    
    
    return kTRUE;
@@ -219,11 +187,11 @@ void Analyzer::Terminate(){
 
    cCanvas->cd(1);
    cCanvas->cd(1)->SetLogz(1);
-   hevID->Draw("colz");
+   heVID->Draw("colz");
 
    cCanvas->cd(2);
    cCanvas->cd(2)->SetLogz(1);
-   heCalvID->Draw("colz");
+   heCalVID->Draw("colz");
    
    cCanvas->cd(3);
    cCanvas->cd(3)->SetLogz(1);
