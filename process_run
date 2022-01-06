@@ -1,14 +1,13 @@
 #1/bin/bash
 
 DIR=$(pwd)
-DATA_DIR=fsu_run_2021
-sortTime=$DIR/$DATA_DIR/pxi-time-order
+DATA_DIR=data
 
 if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
-  echo "$./process_run [Run Folder] [Time Sort] [EventBuild] [Analysis]"
+  echo "$./process_run [Run Folder] [Merge] [isBuildEvents] [Analysis]"
   echo "     Run Folder = the name of run folder"
-  echo "      Time Sort =   1/0/-1    || 1 = sort, 0 = not sort, -1 = force sort "  
-  echo "     EventBuild =   1/0/-1    || " 
+  echo "          Merge =   1/0/-1    || 1 = merge, 0 = not merge, -1 = force merge "  
+  echo "     isBuildEvents =   1/0/-1    || " 
   echo "       Analysis =   1/0/-1    || "
   echo ""
   exit 1
@@ -16,10 +15,10 @@ fi;
 
 RunFolder=$1
 
-TimeSort=1
-if [ $# -gt 1 ]; then TimeSort=$2; fi
-EventBuild=1
-if [ $# -gt 2 ]; then EventBuild=$3; fi
+isMerge=1
+if [ $# -gt 1 ]; then isMerge=$2; fi
+isBuildEvents=1
+if [ $# -gt 2 ]; then isBuildEvents=$3; fi
 
 RED='\033[1;31m'
 YELLOW='\033[1;33m'
@@ -29,76 +28,151 @@ BLUE='\033[0;34m'
 Cyan='\033[0;36m'
 NC='\033[0m'
 
+
+echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge evt files to ${RunFolder}_raw.root $NC"
+
+if [ $isMerge -eq 1 ]; then
+  # check is ${RunFolder}"_raw.root" exist
+  if [ -f ${RunFolder}_raw.root ]; then #_raw.root exist
+    #check evt DateTime
+    evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/*.evt | sort -rn | head -1`  
+    rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
+    if [ $evtDateTime -gt $rawRootDateTime ]; then #if evt file is newer
+      ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+    else
+      echo "there is no newer evt files"
+    fi
+
+  else
+
+    ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+
+  fi
+fi
+
+if [ $isMerge -eq 0 ]; then
+  echo -e "$YELLOW skipped by user $NC"
+fi
+
+if [ $isMerge -eq -1 ]; then
+  echo -e "$YELLOW forced by user $NC"
+  ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+fi
+echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge finished$NC"
+
+
+echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events$NC"
+if [ ${isBuildEvents} -eq 1 ]; then
+
+  if [ -f ${RunFolder}.root ]; then # root exist
+    rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
+    rootDateTime=`stat -c "%Z" ${RunFolder}".root" | sort -rn | head -1`
+    
+    if [ ${rawRootDateTime} -gt ${rootDateTime} ]; then
+      ./armory/EventBuilder ${RunFolder}"_raw.root"
+    else
+      echo -e "${RunFolder}.root is up-to-date."
+    fi
+  else
+  ./armory/EventBuilder ${RunFolder}"_raw.root"
+  fi 
+
+fi
+
+if [ ${isBuildEvents} -eq 0 ]; then
+  echo -e "$YELLOW skipped by user $NC"
+fi
+
+if [ ${isBuildEvents} -eq -1 ]; then
+  echo -e "$YELLOW forced by user $NC"
+  ./armory/EventBuilder ${RunFolder}"_raw.root"
+
+fi
+echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
+
+
+echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Analysis $NC"
+
+
+
+
+
+
 #cd $RunFolder
 #ls  -lhtr *.evt
-cd $DATA_DIR/$RunFolder
-fileList=$(ls *.evt)
-numFile=$(ls -lhtr *.evt | wc -l)
-count=0
+#cd $DATA_DIR/$RunFolder
+#fileList=$(ls *.evt)
+#numFile=$(ls -lhtr *.evt | wc -l)
+#count=0
+#
+#cd $DIR
 
-cd $DIR
 
-for a in $fileList 
-do
-  count=$((${count}+1))
-  echo -e "$YELLOW>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ["$count"/"$numFile"]"
-  echo -e  $a
-  echo -e "------------------------------------------$NC"
-  
-  #............ check if *.to file exist, if yes, check timestamp, if timestamp is eariler, sort time
 
-  if [ $TimeSort -eq 1 ]; then
-    evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/$a | sort -rn | head -1`  
-    istoExist=`ls -1 $a.to 2> /dev/null | wc -l`
-    if [ ${istoExist} -gt 0 ]; then
-      echo "--- found $a.to"
-      toDateTime=`stat -c "%Z"  $a.to | sort -rn | head -1`  
-      if [ ${evtDateTime} -ge ${toDateTime} ]; then
-        $sortTime $DATA_DIR/$RunFolder/$a 
-      else
-        echo "$a.to is generated after $a. skip."
-      fi
-    else
-      echo "cannot find $a.to, sort"
-      $sortTime $DATA_DIR/$RunFolder/$a
-    fi
-  elif [ $TimeSort -eq 0 ]; then
-    echo "skipped time sort by user."
-  else
-    echo "force Time sort"
-    $sortTime $DATA_DIR/$RunFolder/$a 
-  fi
-  
 
-  #............ check if *.root file exist, if yes, check timestamp, if timestamp is eariler, built
-  
-  if [ $EventBuild -eq 1 ]; then
-    len=`echo $a | wc -c`
-    len=$(($len-5))
-    rootFile=${a:0:$len}".root"
-    isRootExist=`ls -1 $rootFile 2> /dev/null | wc -l`
-    if [ ${isRootExist} -gt 0 ]; then
-      echo "--- found $rootFile"
-      rootDateTime=`stat -c "%Z"  $rootFile | sort -rn | head -1`  
-      if [ ${toDateTime} -ge ${rootDateTime} ]; then
-        $DIR/pixie2root $a.to
-      else
-        echo "$rootFile is generated after $a.to skip."
-      fi
-    else
-      echo "cannot find $rootFile, build events"
-      $DIR/pixie2root $a.to
-    fi  
-  elif [ $TimeSort -eq 0 ]; then
-    echo "skipped event build by user."
-  else
-    echo "force event build"
-    $DIR/pixie2root $a.to
-  fi
-  
-done
 
-fileList=$(ls *.root)
+
+#for a in $fileList 
+#do
+#  count=$((${count}+1))
+#  echo -e "$YELLOW>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ["$count"/"$numFile"]"
+#  echo -e  $a
+#  echo -e "------------------------------------------$NC"
+#  
+#  #............ check if *.to file exist, if yes, check timestamp, if timestamp is eariler, sort time
+#
+#  if [ $isMerge -eq 1 ]; then
+#    evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/$a | sort -rn | head -1`  
+#    istoExist=`ls -1 $a.to 2> /dev/null | wc -l`
+#    if [ ${istoExist} -gt 0 ]; then
+#      echo "--- found $a.to"
+#      toDateTime=`stat -c "%Z"  $a.to | sort -rn | head -1`  
+#      if [ ${evtDateTime} -ge ${toDateTime} ]; then
+#        $sortTime $DATA_DIR/$RunFolder/$a 
+#      else
+#        echo "$a.to is generated after $a. skip."
+#      fi
+#    else
+#      echo "cannot find $a.to, sort"
+#      $sortTime $DATA_DIR/$RunFolder/$a
+#    fi
+#  elif [ $isMerge -eq 0 ]; then
+#    echo "skipped time sort by user."
+#  else
+#    echo "force Time sort"
+#    $sortTime $DATA_DIR/$RunFolder/$a 
+#  fi
+#  
+#
+#  #............ check if *.root file exist, if yes, check timestamp, if timestamp is eariler, built
+#  
+#  if [ $isBuildEvents -eq 1 ]; then
+#    len=`echo $a | wc -c`
+#    len=$(($len-5))
+#    rootFile=${a:0:$len}".root"
+#    isRootExist=`ls -1 $rootFile 2> /dev/null | wc -l`
+#    if [ ${isRootExist} -gt 0 ]; then
+#      echo "--- found $rootFile"
+#      rootDateTime=`stat -c "%Z"  $rootFile | sort -rn | head -1`  
+#      if [ ${toDateTime} -ge ${rootDateTime} ]; then
+#        $DIR/pixie2root $a.to
+#      else
+#        echo "$rootFile is generated after $a.to skip."
+#      fi
+#    else
+#      echo "cannot find $rootFile, build events"
+#      $DIR/pixie2root $a.to
+#    fi  
+#  elif [ $isMerge -eq 0 ]; then
+#    echo "skipped event build by user."
+#  else
+#    echo "force event build"
+#    $DIR/pixie2root $a.to
+#  fi
+#  
+#done
+#
+#fileList=$(ls *.root)
 
 
 

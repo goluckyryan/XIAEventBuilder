@@ -56,7 +56,7 @@ int main(int argn, char **argv){
   int timeWindow = 100;
   if( argn >= 3 ) timeWindow = atoi(argv[2]);
   
-  printf("======================== Opening input _raw.root \n");
+  printf(">>> Opening input %s \n", inFileName.Data());
   TFile * inFile = new TFile(inFileName, "READ");
   if( inFile->IsOpen() == false ) {
     printf("!!!! cannot open file %s \n", inFileName.Data());
@@ -84,7 +84,7 @@ int main(int argn, char **argv){
   
   printf( "total Entry : %lld \n", totnumEntry);
   
-  printf("======================== Buidling Index using the timestamp\n");
+  printf(">>> Buidling Index using the timestamp\n");
   tree->BuildIndex("e_t");
   TTreeIndex *in = (TTreeIndex*) tree->GetTreeIndex(); 
   Long64_t * index = in->GetIndex();
@@ -92,12 +92,15 @@ int main(int argn, char **argv){
   ULong64_t time0;  //time-0 for each event
   int       timeDiff; 
 
-  printf("======================== Create output tree\n");
+  
   TString outFileName = inFileName;
-  outFileName.Remove(inFileName.First('.'));
+  outFileName.Remove(inFileName.First("_raw"));
   outFileName.Append(".root");
   if( argn >=4 ) outFileName = argv[3];
   
+  printf(">>> out File name : %s\n", outFileName.Data());
+  
+  printf(">>> Create output tree\n");
   TFile * saveFile = new TFile(outFileName, "recreate");
   saveFile->cd();
   TTree * newtree = new TTree("tree", "tree");
@@ -117,7 +120,7 @@ int main(int argn, char **argv){
   
   ClearTreeData();
   
-  printf("======================== Start processing....\n");
+  printf("================== Start processing....\n");
   Float_t Frac = 0.1; ///Progress bar
   TStopwatch StpWatch;
   StpWatch.Start();
