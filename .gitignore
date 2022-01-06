@@ -6,11 +6,12 @@
 
 xia2root
 xia2ev2*
-pixie2root
+to2root
 scan
 pxi-time-order
 evt2root
 evt2hist
+ev22txt
 
 *.so
 *.d
@@ -18,3 +19,6 @@ evt2hist
 
 ti74pt7a
 fsu_run_2021
+data
+
+test.cpp

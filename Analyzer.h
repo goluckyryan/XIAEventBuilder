@@ -13,6 +13,7 @@
 #include <TChain.h>
 #include <TFile.h>
 #include <TSelector.h>
+#include <TStopwatch.h>
 
 #include "mapping.h"
 #include "armory/AnalysisLibrary.h"
@@ -28,9 +29,11 @@ public :
    // Declaration of leaf types
    ULong64_t       evID;
    Double_t        e[NCRYSTAL];
-   ULong64_t       t[NCRYSTAL];
+   ULong64_t       e_t[NCRYSTAL];
    UShort_t        p[NCRYSTAL];
+   UShort_t        hit[NCRYSTAL];
    Double_t        bgo[NBGO];
+   ULong64_t       bgo_t[NBGO];
    Double_t        other[NOTHER];
    Int_t           multi;
 
@@ -39,11 +42,18 @@ public :
    TBranch        *b_energy;   //!
    TBranch        *b_time;   //!
    TBranch        *b_pileup;   //!
+   TBranch        *b_hit;   //!
    TBranch        *b_bgo;   //!
+   TBranch        *b_bgoTime;   //!
    TBranch        *b_other;   //!
-   TBranch        *b_multiplicity;   //!
+   TBranch        *b_multi;   //!
 
-   Analyzer(TTree * /*tree*/ =0) : fChain(0) { }
+   Analyzer(TTree * /*tree*/ =0) : fChain(0) { totnumEntry = 0; 
+                                               Frac = 0.1; 
+                                               ProcessedEntries = 0; 
+                                               saveEV2 = true; 
+                                               outEV2Name = "test.ev2";
+                                             }
    virtual ~Analyzer() { }
    virtual Int_t   Version() const { return 2; }
    virtual void    Begin(TTree *tree);
@@ -60,6 +70,21 @@ public :
    virtual void    Terminate();
 
    ClassDef(Analyzer,0);
+
+   ULong64_t totnumEntry;
+
+   vector<vector<double>> eCorr;
+
+   ULong64_t ProcessedEntries;
+   Float_t Frac; ///Progress bar
+   TStopwatch StpWatch;
+
+   bool saveEV2;
+   FILE * outEV2;
+   TString outEV2Name;
+
+
+
 };
 
 #endif
@@ -82,11 +107,23 @@ void Analyzer::Init(TTree *tree)
 
    fChain->SetBranchAddress("evID",   &evID, &b_event_ID);
    fChain->SetBranchAddress("e",          e, &b_energy);
-   fChain->SetBranchAddress("t",          t, &b_time);
+   fChain->SetBranchAddress("e_t",      e_t, &b_time);
    fChain->SetBranchAddress("p",          p, &b_pileup);
+   fChain->SetBranchAddress("hit",      hit, &b_hit);
    fChain->SetBranchAddress("bgo",      bgo, &b_bgo);
+   fChain->SetBranchAddress("bgo_t",  bgo_t, &b_bgoTime);
    fChain->SetBranchAddress("other",  other, &b_other);
-   fChain->SetBranchAddress("multi", &multi, &b_multiplicity);
+   fChain->SetBranchAddress("multi", &multi, &b_multi);
+
+   if( saveEV2 ){
+      printf("======================== Create output ev2 : %s\n", outEV2Name.Data());
+      outEV2 = fopen(outEV2Name.Data(), "w+");
+   }  
+
+
+   printf("======================== Start processing....\n");
+   StpWatch.Start();
+
 }
 
 Bool_t Analyzer::Notify()

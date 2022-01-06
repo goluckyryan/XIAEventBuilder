@@ -2,7 +2,7 @@ CC=g++
 
 #all: xia2root  xia2ev2_nopart pixie2root scan pxi-time-order
 #all: xia2root  xia2ev2_nopart pixie2root scan evt2root evt2hist
-all: xia2root  pixie2root evt2root evt2hist pxi-time-order
+all: xia2root  to2root evt2root evt2hist pxi-time-order ev22txt EventBuilder
 
 #this is FSU evt to root
 xia2root: armory/xia2root.cpp
@@ -12,8 +12,8 @@ xia2root: armory/xia2root.cpp
 #	$(CC) armory/xia2ev2_nopart.cpp -o xia2ev2_nopart
 
 #this is for eventbuild 
-pixie2root: armory/pixie2root.cpp
-	$(CC) armory/pixie2root.cpp -o pixie2root `root-config --cflags --glibs`
+to2root: armory/to2root.cpp
+	$(CC) armory/to2root.cpp -o to2root `root-config --cflags --glibs`
 
 #this is for online root
 evt2root: armory/evt2root.cpp
@@ -25,3 +25,9 @@ evt2hist: armory/evt2hist.cpp
 
 pxi-time-order: armory/pxi-time-order.c
 	$(CC) armory/pxi-time-order.c -o pxi-time-order 
+	
+ev22txt:  armory/ev22txt.cpp
+	$(CC) armory/ev22txt.cpp -o ev22txt
+
+EventBuilder: armory/EventBuilder.cpp
+	$(CC) armory/EventBuilder.cpp -o EventBuilder `root-config --cflags --glibs`

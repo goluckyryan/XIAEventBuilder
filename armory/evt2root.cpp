@@ -15,6 +15,7 @@
 #define MAX_CHANNELS_PER_BOARD 16
 #define BOARD_START 2
 
+#include "../mapping.h"
 
 class measurment{
 
@@ -106,8 +107,8 @@ int main(int argn, char **argv) {
   
   tree->Branch("evID",    &measureID, "data_ID/L"); 
   tree->Branch("id",        &data.id, "ID/s");
-  tree->Branch("e",     &data.energy, "energy/s");
-  tree->Branch("t",       &data.time, "timestamp/l");
+  tree->Branch("e",     &data.energy, "crystal_energy/s");
+  tree->Branch("e_t",       &data.time, "crystal_timestamp/l");
   //tree->Branch("tdiff", &data.timeDiff, "time_Diff/L");
   
 
@@ -125,7 +126,7 @@ int main(int argn, char **argv) {
     measureID ++; 
     
     /// see the Pixie-16 user manual, Table4-2
-    data.ch =  header[0] & 0xF ;
+    data.ch           =  header[0] & 0xF ;
     data.slot         = (header[0] >> 4) & 0xF;
     data.crate        = (header[0] >> 8) & 0xF;
     data.headerLength = (header[0] >> 12) & 0x1F;
@@ -138,23 +139,11 @@ int main(int argn, char **argv) {
     data.trace_out_of_range =  header[3] >> 31;
     
     data.id = data.crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data.slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data.ch;
-    
+
+    data.id = mapping[data.id];
+    data.energy = data.energy / 2. ; // factor 2 is the rawe_rebin_factor;
+
     nWords += data.eventLength;
-    
-    //if( measureID == 0 ) {
-    //  data.timeDiff = 0;
-    //}else{
-    //  data.timeDiff = (Long64_t) data.time - timeLast;
-    //}
-    //timeLast = data.time;
-    
-    //if( data.timeDiff == false ){
-    //  printf("----------------------nWords: %llu, inFilePos: %lu\n", nWords, inFilePos);
-    //  for(int i = 0; i < 4; i++){
-    //    printf("  %x\n", header[i]);
-    //  }
-    //  data.Print();
-    //}
     
     //=== jump to next measurement
     if( data.eventLength > 4 ){

@@ -7,25 +7,19 @@
 #include <TCanvas.h>
 #include <TMath.h>
 #include <vector>
-#include <TStopwatch.h>
+#include <stdio.h>
 
 //############################################ User setting
 
-int rawEnergyRange[2] = {500,  6000}; // in ch
-int energyRange[3] = {1, 100, 2000}; // keV {resol, min, max}
+int rawEnergyRange[2] = {0,  6000}; // in ch
+int energyRange[3] = {1, 0, 6000}; // keV {resol, min, max}
 
-double BGO_threshold = 100; // in ch
+double BGO_threshold = 0; // in ch
 
-TString e_corr = "correction_e.dat";
+TString e_corr = "";//"correction_e.dat";
 
 //############################################ end of user setting
 
-ULong64_t NumEntries = 0;
-ULong64_t ProcessedEntries = 0;
-Float_t Frac = 0.1; ///Progress bar
-TStopwatch StpWatch;
-
-vector<vector<double>> eCorr;
 
 //############################################ histogram declaration
 
@@ -41,12 +35,19 @@ TH2F * heCalvID;
 TH1F * heCal[NCRYSTAL]; 
 TH2F * hcoinBGO;
 
+TH2F * hcrystalBGO;
+
 //############################################ BEGIN
 void Analyzer::Begin(TTree * tree){
 
    TString option = GetOption();
 
-   NumEntries = tree->GetEntries();
+   totnumEntry = tree->GetEntries();
+
+   printf( "=========================================================================== \n");
+   printf( "==========================  Analysis.C/h   ================================ \n");
+   printf( "======  total Entry : %lld \n", totnumEntry);
+   printf( "=========================================================================== \n");
 
    printf("======================== Histograms declaration\n");
    
@@ -70,16 +71,15 @@ void Analyzer::Begin(TTree * tree){
    }
    
    hcoin = new TH2F("hcoin", "detector coin.; det ID; det ID", NCRYSTAL, 0, NCRYSTAL, NCRYSTAL, 0 , NCRYSTAL); 
+   
    hcoinBGO = new TH2F("hcoinBGO", Form("detector coin. (BGO veto > %.1f); det ID; det ID", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, NCRYSTAL, 0 , NCRYSTAL); 
+   hcrystalBGO = new TH2F("hcrystalBGO", Form("crystal vs BGO ; det ID; BGO ID"), NCRYSTAL, 0, NCRYSTAL, NBGO, 0 , NBGO); 
    
    printf("======================== End of histograms declaration\n");
    
    printf("======================== Load parameters.\n");
    
    eCorr = LoadCorrectionParameters(e_corr); 
-   
-   StpWatch.Start();
-   printf("======================== Start processing....\n");
 
 }
 //############################################ PROCESS
@@ -88,23 +88,30 @@ Bool_t Analyzer::Process(Long64_t entry){
    ProcessedEntries++;
    
    /*********** Progress Bar ******************************************/ 
-   if (ProcessedEntries>NumEntries*Frac-1) {
-      TString msg; msg.Form("%llu", NumEntries/1000);
+   if (ProcessedEntries>totnumEntry*Frac-1) {
+      TString msg; msg.Form("%llu", totnumEntry/1000);
       int len = msg.Sizeof();
       printf(" %3.0f%% (%*llu/%llu k) processed in %6.1f sec | expect %6.1f sec\n",
-               Frac*100, len, ProcessedEntries/1000,NumEntries/1000,StpWatch.RealTime(), StpWatch.RealTime()/Frac);
+               Frac*100, len, ProcessedEntries/1000,totnumEntry/1000,StpWatch.RealTime(), StpWatch.RealTime()/Frac);
       StpWatch.Start(kFALSE);
       Frac+=0.1;
    }
 
    b_energy->GetEntry(entry);
    b_time->GetEntry(entry);
-   //b_pileup->GetEntry(entry);
+   b_pileup->GetEntry(entry);
+   b_hit->GetEntry(entry);
    b_bgo->GetEntry(entry);
-   //b_other->GetEntry(entry);
-   //b_multiplicity->GetEntry(entry);
+   b_bgoTime->GetEntry(entry);
+   b_other->GetEntry(entry);
+   b_multi->GetEntry(entry);
    
    if( multi == 0 ) return kTRUE;
+   
+   int numGatedData=0;
+   vector<int> gatedID;
+   gatedID.clear();
+   double eCal[NCRYSTAL] ={0.0};
 
    ///=========== Looping Crystals
    for( int detID = 0; detID < NCRYSTAL ; detID ++){
@@ -117,6 +124,10 @@ Bool_t Analyzer::Process(Long64_t entry){
       hevID->Fill( detID, e[detID]);
       he[detID]->Fill(e[detID]);
       
+      for( int kk = 0 ; kk < NBGO; kk++){
+         if( bgo[kk] > 0 ) hcrystalBGO->Fill(detID, kk);
+      }
+      
       
       for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
@@ -127,34 +138,73 @@ Bool_t Analyzer::Process(Long64_t entry){
       //======== BGO veto
       for( int kk = 0; kk < NBGO ; kk++){
          if( TMath::IsNaN(bgo[kk]) ) continue;
-         if( bgo[kk] > BGO_threshold ) {
+         if( bgo[kk] > BGO_threshold  &&  4*kk <= detID && detID < 4*(kk+1) ) {
             return kTRUE;
          }
       }
    
-      
-      //========= apply correction
-      double eCal = 0 ;
-      int order = (int) eCorr[detID].size();
-      for( int i = 0; i < order ; i++){
-         eCal += eCorr[detID][i] * TMath::Power(e[detID], i);
+      //----- for ev2 file
+      if( saveEV2 ){
+         numGatedData ++;
+         gatedID.push_back(detID);
       }
       
-      
-      heCalvID->Fill( detID, eCal);
-      heCal[detID]->Fill(eCal);
+      //========= apply correction
+      int order = (int) eCorr[detID].size();
+      for( int i = 0; i < order ; i++){
+         eCal[detID] += eCorr[detID][i] * TMath::Power(e[detID], i);
+      }
+            
+      heCalvID->Fill( detID, eCal[detID]);
+      heCal[detID]->Fill(eCal[detID]);
       
       for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
          if( TMath::IsNaN(e[detJ])) continue;
          hcoinBGO->Fill(detID, detJ); 
       }
-      
    }
+   
+   
+   if ( saveEV2){
+      
+      short *  out0 = new short[1];
+      short *  outa = new short[1];
+      short * outb = new short[1];
+      
+      out0[0] = numGatedData;
+      fwrite(out0, 1, 1, outEV2); 
+      
+      for( int i = 0; i < (int) gatedID.size(); i++){
+         int id = gatedID[i];
+         outa[0] = id;
+         fwrite(outa, 1, 1, outEV2); 
+         outb[0] = eCal[id];
+         fwrite(outb, 2, 1, outEV2); 
+      }
+      
+      fwrite(out0, 1, 1, outEV2); 
+      
+      /**
+      int len = (int) gatedID.size();
+      char out[2*len+2];
+      out[0] = numGatedData;
+      for( int i = 0; i < (int) gatedID.size(); i++){
+         int id = gatedID[i];
+         out[2*i+1] = id;
+         out[2*i+2] = eCal[id];
+      }
+      out[2*len+1]=numGatedData;
+      fwrite(out,3*len+2,sizeof(out),outEV2);
+      */ 
+   }  
+   
    
    return kTRUE;
 }
 //############################################ TERMINATE
 void Analyzer::Terminate(){
+   
+   if(saveEV2) fclose(outEV2);
 
    printf("============================== finishing.\n");
    gROOT->cd();
@@ -177,11 +227,14 @@ void Analyzer::Terminate(){
    
    cCanvas->cd(3);
    cCanvas->cd(3)->SetLogz(1);
-   hcoin->Draw("colz");
+   hcrystalBGO->Draw("colz");
    
    cCanvas->cd(4);
-   cCanvas->cd(4)->SetLogz(1);
-   hcoinBGO->Draw("colz");
+   //cCanvas->cd(4)->SetLogz(1);
+   he[0]->SetLineColor(2);
+   he[0]->Draw();
+   heCal[0]->Draw("same");
+   //hcoinBGO->Draw("colz");
 
    printf("=============== loaded AutoFit.C, try showFitMethos()\n");
    gROOT->ProcessLine(".L armory/AutoFit.C");   

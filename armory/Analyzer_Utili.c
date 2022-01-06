@@ -18,12 +18,12 @@ void newCanvas(int sizeX = 800, int sizeY = 600, int posX = 0, int posY = 0){
   cNewCanvas->cd();
 }
 
-void rawEvID(bool cal = false){
-  TCanvas * cRawID = (TCanvas *) gROOT->FindObjectAny("cRawID");
-  if( cRawID == NULL ) cRawID = new TCanvas("cRawID", "raw ID", 1000, 800);
-  cRawID->cd(1)->SetGrid();
-  cal ? heCalVID->Draw("colz") : heVID->Draw("colz");
-}
+//void rawEvID(bool cal = false){
+//  TCanvas * cRawID = (TCanvas *) gROOT->FindObjectAny("cRawID");
+//  if( cRawID == NULL ) cRawID = new TCanvas("cRawID", "raw ID", 1000, 800);
+//  cRawID->cd(1)->SetGrid();
+//  cal ? heCalVID->Draw("colz") : heVID->Draw("colz");
+//}
 
 void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMin = 0, double xMax = 0){
 
