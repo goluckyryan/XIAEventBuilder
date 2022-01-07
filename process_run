@@ -59,7 +59,12 @@ if [ $Method -eq 1 ]; then
   pos=`expr index "${temp}" /`
   toFile=${temp:pos}".to"
   pos=`expr index "${toFile}" .`
-  rootFile=${toFile:0:pos}"root"
+  pos=$((pos-1))
+  if [ ${isBuildEvents} -gt 1 ]; then
+    rootFile=${toFile:0:pos}"_${isBuildEvents}.root"
+  else
+    rootFile=${toFile:0:pos}".root"
+  fi
   
   #echo ${RunFile}
   #echo ${toFile}
@@ -95,17 +100,12 @@ if [ $Method -eq 1 ]; then
 
 
   echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events $NC"
-  if [ ${isBuildEvents} -ge 1 ]; then
+  if [ ${isBuildEvents} -eq 1 ]; then
     if [ -f ${rootFolder} ]; then # root exist
       toDateTime=`stat -c "%Z" ${toFile} | sort -rn | head -1`
       rootDateTime=`stat -c "%Z" ${rootFile} | sort -rn | head -1`
       if [ ${toDateTime} -gt ${rootDateTime} ]; then
-        
-        if [ ${isBuildEvents} -gt 1 ]; then
-          ./armory/to2root ${toFile} $TIMEWINDOW ${isBuildEvents}
-        else
           ./armory/to2root ${toFile} $TIMEWINDOW
-        fi
         echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
       else
         echo -e "${rootFile} is up-to-date."
@@ -120,10 +120,10 @@ if [ $Method -eq 1 ]; then
     echo -e "$YELLOW skipped by user $NC"
   fi
 
-  if [ ${isBuildEvents} -le -1 ]; then
+  if [ ${isBuildEvents} -le -1 ] ||  [ ${isBuildEvents} -gt 1 ];  then
     echo -e "$YELLOW forced by user $NC"
-    if [ ${isBuildEvents} -lt 1 ]; then
-      ./armory/to2root ${toFile} $TIMEWINDOW ${isBuildEvents}
+    if [ ${isBuildEvents} -lt 1 ] || [ ${isBuildEvents} -gt 1 ]; then
+      ./armory/to2root ${toFile} $TIMEWINDOW ${isBuildEvents} ${rootFile}
     else
       ./armory/to2root ${toFile} $TIMEWINDOW
     fi
