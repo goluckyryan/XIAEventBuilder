@@ -13,7 +13,7 @@
 
 #include "../mapping.h"
 
-#define MAXMULTI 200
+#define MAXMULTI 100
 
 int main(int argn, char **argv){
   printf("=====================================\n");
@@ -65,7 +65,7 @@ int main(int argn, char **argv){
   printf(">>> Buidling Index using the timestamp\n");
   tree->BuildIndex("e_t");
   TTreeIndex *in = (TTreeIndex*) tree->GetTreeIndex(); 
-  Long64_t * index = in->GetIndex();
+  Long64_t * index = in->GetIndex();  
   
   ULong64_t time0;  //time-0 for each event
   int       timeDiff; 
@@ -91,9 +91,9 @@ int main(int argn, char **argv){
   Int_t multiCry = 0 ; /// thi is total multiplicity for all crystal
   newtree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
   
-  int id[MAXMULTI];
-  double e[MAXMULTI];    
-  ULong64_t e_t[MAXMULTI];
+  int id[MAXMULTI] = {0};
+  double e[MAXMULTI] = {TMath::QuietNaN()};    
+  ULong64_t e_t[MAXMULTI] = {0};
   newtree->Branch("id",       id, "id[multi]/I" );
   newtree->Branch("e",         e, "e[multi]/D" );
   newtree->Branch("e_t",     e_t, "e_timestamp[multi]/l");
@@ -103,9 +103,10 @@ int main(int argn, char **argv){
   TStopwatch StpWatch;
   StpWatch.Start();
   
+  int multiOverflow = 0;
+  
   for( Long64_t entry = 0; entry < totnumEntry; entry++){
-    
-
+ 
     /*********** Progress Bar ******************************************/ 
     if (entry>totnumEntry*Frac-1) {
       TString msg; msg.Form("%llu", totnumEntry/1000);
@@ -116,26 +117,29 @@ int main(int argn, char **argv){
       Frac+=0.1;
     }
     
-    entry = index[entry];
+    Long64_t ev = index[entry];
     
-    b_ID->GetEntry(entry, 0);
-    b_energy->GetEntry(entry, 0);
-    b_energy_timestamp->GetEntry(entry, 0);
+    b_ID->GetEntry(ev, 0);
+    b_energy->GetEntry(ev, 0);
+    b_energy_timestamp->GetEntry(ev, 0);
     
     if( time0 == 0) {
       time0 = energy_t;
       multi = 0;
     }
     timeDiff = (int) (energy_t - time0);
-  
+    
     if( timeDiff < timeWindow ) {
       
-      id[multi] = detID;
-      e[multi] = energy;
-      e_t[multi] = energy_t;
-      multi ++;
-      if( detID < NCRYSTAL ) multiCry++;
-      
+      if( multi > MAXMULTI ){
+        multiOverflow++;
+      }else{
+        id[multi] = detID;
+        e[multi] = energy;
+        e_t[multi] = energy_t;
+        multi ++;
+        if( detID < NCRYSTAL ) multiCry++;
+      }
     }else{
       ///---- end of event
       saveFile->cd();
@@ -143,7 +147,7 @@ int main(int argn, char **argv){
       eventID ++;
       
       ///---- clear data
-      for( int i = 0; i < multi ; i ++){
+      for( int i = 0; i < MAXMULTI ; i ++){
         id[i] = 0;
         e[i] = TMath::QuietNaN();
         e_t[i] = 0;
@@ -161,9 +165,7 @@ int main(int argn, char **argv){
       e_t[multi] = energy_t;
       multi++;
       if( detID < NCRYSTAL ) multiCry++;
-
     }
-    
   }
 
   printf("============================== finished.\n");
@@ -172,6 +174,6 @@ int main(int argn, char **argv){
   newtree->Write();
   saveFile->Close();
   
-  printf(" total number of event Built : %d \n", eventID);
-  
+  printf("  total number of event Built : %d \n", eventID);
+  printf(" total event has multi > %6d : %d \n", MAXMULTI, multiOverflow);
 }
