@@ -97,8 +97,8 @@ if [ $Method -eq 1 ]; then
   echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events $NC"
   if [ ${isBuildEvents} -ge 1 ]; then
     if [ -f ${rootFolder} ]; then # root exist
-      toDateTime=`stat -c "%Z" ${toFolder} | sort -rn | head -1`
-      rootDateTime=`stat -c "%Z" ${rootFolder} | sort -rn | head -1`
+      toDateTime=`stat -c "%Z" ${toFile} | sort -rn | head -1`
+      rootDateTime=`stat -c "%Z" ${rootFile} | sort -rn | head -1`
       if [ ${toDateTime} -gt ${rootDateTime} ]; then
         
         if [ ${isBuildEvents} -gt 1 ]; then

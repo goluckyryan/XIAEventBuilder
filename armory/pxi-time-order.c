@@ -166,8 +166,6 @@ int main(int argc, char **argv) {
   fseek(fpr, fprpos, SEEK_SET);
 
 
-
-
   //Get memory for default number of subevents per channel id
   for (i=0; i<MAX_ID; i++){
     subevents[i] = (struct subevent *)malloc(sizeof(struct subevent)*DEF_SUB_EVENTS);
