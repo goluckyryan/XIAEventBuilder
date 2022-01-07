@@ -34,6 +34,8 @@ TH2F * hcoin;
 
 TH2F * hcrystalBGO;
 
+TH1F * hTDiff;
+
 ///----- after calibration and BGO veto
 TH2F * heCalVID;
 TH1F * heCal[NCRYSTAL]; 
@@ -57,6 +59,8 @@ void Analyzer::Begin(TTree * tree){
    
    heVID    = new TH2F("heVID",                                              "e vs ID; det ID; e [ch]", NCRYSTAL, 0, NCRYSTAL, rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
    heCalVID = new TH2F("heCalVID", Form("eCal vs ID (BGO veto > %.1f); det ID; Energy [keV]", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+   
+   hTDiff = new TH1F("hTDiff", "data time different within an event; tick [10 ns]", 110, 0, 110);
    
    heVID->SetNdivisions(-409, "X");
    heCalVID->SetNdivisions(-409, "X");
@@ -113,32 +117,39 @@ Bool_t Analyzer::Process(Long64_t entry){
    
    for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
 
+   ///printf("---------------------------- %d \n", multi);
    ///=========== Looping data for the event
    for( int i = 0; i < multi ; i ++){
+      
+      int id = detID[i];
+      
+      ///printf("%d %f %llu\n", id, e[i], e_t[i]);
 
       //======== Fill raw data
-      if( detID[i] < 100 ){  /// gamma data
-         heVID->Fill( detID[i], e[i]);
-         he[detID[i]]->Fill(e[i]);
+      if( 0 <= id &&  id < NCRYSTAL ){  /// gamma data
+         heVID->Fill( id, e[i]);
+         he[id]->Fill(e[i]);
          
          for ( int j = i + 1; j < multi; j++){
-            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO->Fill(detID[i], detID[j]-100); /// crystal - BGO coincident 
+            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO->Fill(id, detID[j]-100); /// crystal - BGO coincident 
             
-            if( detID[j] < 100 ) hcoin->Fill(detID[i], detID[j]); /// crystal-crystal coincident 
+            if( detID[j] < 100 ) hcoin->Fill(id, detID[j]); /// crystal-crystal coincident 
             
          }
       }
       
-      if ( 100 < detID[i] && detID[i] < 200 ){ /// BGO data
+      if ( 100 < id && id < 200 ){ /// BGO data
          
       }
       
+      if ( i > 0 ) hTDiff->Fill( e_t[i] - e_t[0]);
       
+     
       //======== BGO veto
       bool dropflag = false;
-      if( detID[i] < 100 && multi > 1) {
+      if( id < NCRYSTAL && multi > 1) {
          for( int j =  i + 1; j < multi; j++){
-            if( detID[j] > 100 && (detID[j]-100)*4 < detID[i] && detID[i] < (detID[j]-100 +1)*4) {
+            if( detID[j] >= 100 && (detID[j]-100)*4 <= id && id < (detID[j]-100 +1)*4) {
                dropflag = true;
                break;
             }
@@ -146,27 +157,28 @@ Bool_t Analyzer::Process(Long64_t entry){
       }
       if( dropflag ) return kTRUE;
       
-      //========= apply correction
-      //int order = (int) eCorr[detID].size();
-      //for( int i = 0; i < order ; i++){
-      //   eCal[detID] += eCorr[detID][i] * TMath::Power(e[detID], i);
-      //}
-      
-      if( detID[i] < 100 ) {
+   
+      if( 0<= id && id < NCRYSTAL ) {
          if( e_corr == "" ){
-            eCal[detID[i]] = e[i];
+            eCal[id] = e[i];
          }else{
-            eCal[detID[i]] = eCorr[detID[i]][0] + eCorr[detID[i]][1] * e[i];
+            ///========= apply correction
+            int order = (int) eCorr[id].size();
+            eCal[id] = 0;
+            for( int k = 0; k < order ; k++){
+               eCal[id] += eCorr[id][k] * TMath::Power(e[i], k);
+            }
          }
          
-         heCalVID->Fill( detID[i], eCal[detID[i]]);
-         heCal[detID[i]]->Fill(eCal[detID[i]]);
+         heCalVID->Fill( id,  eCal[id]);
+         heCal[id]->Fill(eCal[id]);
       
          for ( int j = i + 1; j < multi; j++){
-            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO_G->Fill(detID[i], detID[j]-100); /// crystal - BGO coincident 
+            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO_G->Fill(id, detID[j]-100); /// crystal - BGO coincident 
          }   
       
       }
+      
    }
    
    

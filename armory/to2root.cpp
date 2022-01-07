@@ -31,8 +31,6 @@
 
 #define RAWE_REBIN_FACTOR 2.0 // Rebin 32k pixie16 spectra to something smaller to fit better into 8k.
 
-#define MAXMULTI 100 
-
 #include "../mapping.h"  
 
 /////////////////////
@@ -80,38 +78,49 @@ int main(int argc, char **argv) {
   printf("=====================================\n");  
 
   // Check that the corrent number of arguments were provided.
-  if (argc != 2 && argc != 3 )    {
+  if (argc != 2 && argc != 3  && argc != 4 && argc != 5)    {
     printf("Incorrect number of arguments:\n");
-    printf("%s [*.to File] [timeWindow] \n", argv[0]);
+    printf("%s [*.to File]  <timeWindow>  <fraction>  <saveFile>\n", argv[0]);
     printf("         timeWindow : number of tick, 1 tick = 10 ns. default = 100 \n");   
+    printf("           fraction : 0 to 100, default 100, last fraction of evt.to to root  \n");   
+    printf("                                             e.g. 10, last 10%% of the evt.to to root \n");   
+    printf("           saveFile : default is replace evt.to with root  \n");   
     return 1;
   }
   
   //CERN ROOT things
   TString inFileName = argv[1];
-  TString outFileName = inFileName;
-  
   int timeWindow = 100; 
   if( argc >= 3 ) timeWindow = atoi(argv[2]);
   
+  int frac = 100;
+  if( argc >= 4 ) frac = abs(atoi(argv[3]));
+
+  TString outFileName = inFileName;  
   outFileName.Remove(inFileName.First('.'));
   outFileName.Append(".root");
+  int pos = inFileName.Last('/');
+  outFileName.Remove(0, pos+1);
+  if( argc >= 5) outFileName = argv[4];
   
   printf("  in file : %s \n", inFileName.Data());
-  printf(" our file : %s \n", outFileName.Data());
+  printf(" our file : \033[1;31m%s\033[m\n", outFileName.Data());
 
   printf(" max number of detector channal: %d \n", MAX_ID);
+  
+  printf(" Skipping the frist \033[0;34m %d %% \033[m of data \n", 100 - frac);
+  
   printf("------------------------ Event building time window : %d tics = %d nsec \n", timeWindow, timeWindow*10);
-
+  
   TFile * outRootFile = new TFile(outFileName, "recreate");
   outRootFile->cd();
   TTree * tree = new TTree("tree", "tree");
 
   unsigned long long          evID = 0;
   int                        multi = 0;
-  int                 id[MAXMULTI] = {0};
-  double               e[MAXMULTI] = {TMath::QuietNaN()};  
-  unsigned long long e_t[MAXMULTI] = {0};
+  int                   id[MAX_ID] = {0};
+  double                 e[MAX_ID] = {TMath::QuietNaN()};  
+  unsigned long long   e_t[MAX_ID] = {0};
   Int_t                   multiCry = 0 ; /// this is total multiplicity for all crystal
 
   //unsigned short  pileup[MAXMULTI];
@@ -144,7 +153,7 @@ int main(int argc, char **argv) {
   /////////////////////
   // MAIN WHILE LOOP //
   /////////////////////
-  while (1) { //main while loop 
+  while (!feof(fpr)) { //main while loop 
 
       /////////////////////////////////
       // UNPACK DATA AND EVENT BUILD //
@@ -152,18 +161,24 @@ int main(int argc, char **argv) {
       
       long long int etime = -1; 
       long long int tdif = -1; 
-      int sevtmult=0;  
       
       while (1) { //get subevents and event build for one "event" 
         
         if (fread(sub, sizeof(int)*HEADER_LENGTH, 1, fpr) != 1) break;
+        fprpos = ftell(fpr);
+        if ( fprpos < fprsize * ( 1. - frac/100.) ) {
+          //printf("%ld / %ld \n", fprpos, fprsize);
+          data.elen   = (sub[0] & 0x7FFE0000) >> 17;          
+          fseek(fpr, sizeof(int)*(data.elen - HEADER_LENGTH), SEEK_CUR);
+          continue; 
+        }
         
         data.chn    =  sub[0] & 0xF;     /// channel in digitizer
         data.sln    = (sub[0] & 0xF0) >> 4; /// digitizer ID
         data.crn    = (sub[0] & 0xF00) >> 8;  /// crate
         data.id     = data.crn*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data.sln-BOARD_START)*MAX_CHANNELS_PER_BOARD + data.chn;   
         data.hlen   = (sub[0] & 0x1F000) >> 12;
-        data.elen   = (sub[0] & 0x7FFE0000) >> 17;
+        data.elen   = (sub[0] & 0x7FFE0000) >> 17; 
         data.fcode  = (sub[0] & 0x80000000) >> 31;
         data.time   = ( (long long int)(sub[2] & 0xFFFF) << 32) + sub[1];
         data.ctime  = (sub[2] & 0x7FFF0000) >> 16;
@@ -175,11 +190,11 @@ int main(int argc, char **argv) {
         
         tempf = (float)data.e/RAWE_REBIN_FACTOR;// + RAND;
         data.e = (int)tempf;  
-       
+        
         //Set reference time for event building
         if (etime == -1) {
             etime = data.time;
-            tdif = 0;
+            tdif  = 0;
             multi = 0;
         }else {
             tdif = data.time - etime;
@@ -204,11 +219,11 @@ int main(int argc, char **argv) {
             pileUpCount++;
         }
         
-        
         //more data than just the header; read entire sub event, first rewind, then read data.elen
         fseek(fpr, -sizeof(int)*HEADER_LENGTH, SEEK_CUR);
         //if (fread(sub, sizeof(int)*dataBlock[sevtmult].elen, 1, fpr) != 1) break;
         if (fread(sub, sizeof(int)*data.elen, 1, fpr) != 1) break;
+
                               
         /**                      
         //trace
@@ -268,7 +283,6 @@ int main(int argc, char **argv) {
         printf("Total dataBlock: \x1B[32m%llu \x1B[31m(%d%% pileup)\x1B[0m\nTotal Events: \x1B[32m%llu (%.1f <mult>)\x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[3A\r", 
                    dataCount, (int)((100*pileUpCount)/dataCount), evID+1, (float)dataCount/((float)evID+1), (100*fprpos/fprsize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
       }      
-
       
       outRootFile->cd();
       tree->Fill();

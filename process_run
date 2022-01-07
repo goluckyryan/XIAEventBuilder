@@ -1,22 +1,32 @@
 #!/bin/bash
 
 DIR=$(pwd)
-DATA_DIR=data
-
 TIMEWINDOW=100
 
+Method=1  #1 : evt -> evt.to -> root , 2 : evt -> _raw.root -> root
+
+if [ $Method -eq 1 ]; then
+  DATA_DIR=. 
+else
+  DATA_DIR=data
+fi
+
 if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
-  echo "$./process_run [Run Folder] [Merge] [BuildEvents] [Analysis]"
+  echo "$./process_run [RunFile] [Merge] [BuildEvents] [Analysis]"
   echo "     Run Folder = the name of run folder"
   echo "          Merge =   1/0/-1    || 1 = merge, 0 = not merge, -1 = force merge "  
-  echo "    BuildEvents =   1/0/-1    || " 
+  echo "    BuildEvents =   1/0/-1    || if |x| > 1, take last x %, e.g. 10, last 10 %" 
   echo "       Analysis =   1/0/-1    || "
   echo ""
   
-  ls -l --color $DATA_DIR/
+  if [ $Method -eq 1 ]; then 
+    ls -l --color $DATA_DIR/ 
+  fi
+  
   exit 1
 fi;
 
+RunFile=$1
 RunFolder=$1
 
 isMerge=1
@@ -34,85 +44,192 @@ BLUE='\033[0;34m'
 Cyan='\033[0;36m'
 NC='\033[0m'
 
-if [ -f $DATA_DIR/$RunFolder/*.evt ]; then 
-  echo -e "found evt files."
-else
-  echo -e "cannot found any evt files in $DATA_DIR/$RunFolder/. Abort."
-  exit
-fi
+################################### method 1 evt -> evt.to -> root
+if [ $Method -eq 1 ]; then
 
-echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge evt files to ${RunFolder}_raw.root $NC"
-
-if [ $isMerge -eq 1 ]; then
-  # check is ${RunFolder}"_raw.root" exist
-  if [ -f ${RunFolder}_raw.root ]; then #_raw.root exist
-    #check evt DateTime
-    evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/*.evt | sort -rn | head -1`  
-    rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
-    if [ $evtDateTime -gt $rawRootDateTime ]; then #if evt file is newer
-      ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
-    else
-      echo "there is no newer evt files"
-    fi
-
+  if [ -f $RunFile ]; then 
+    echo -e "found evt files.  "${RunFile}
   else
-
-    ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
-
+    echo -e "!!!!! cannot found evt files ${RunFile}. Abort."
+    exit
   fi
-fi
-
-if [ $isMerge -eq 0 ]; then
-  echo -e "$YELLOW skipped by user $NC"
-fi
-
-if [ $isMerge -eq -1 ]; then
-  echo -e "$YELLOW forced by user $NC"
-  ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
-fi
-echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge finished$NC"
-
-
-echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events$NC"
-if [ ${isBuildEvents} -eq 1 ]; then
-
-  if [ -f ${RunFolder}.root ]; then # root exist
-    rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
-    rootDateTime=`stat -c "%Z" ${RunFolder}".root" | sort -rn | head -1`
-    
-    if [ ${rawRootDateTime} -gt ${rootDateTime} ]; then
-      ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
+  
+  pos=`expr index "${RunFile}" /`
+  temp=${RunFile:pos}
+  pos=`expr index "${temp}" /`
+  toFile=${temp:pos}".to"
+  pos=`expr index "${toFile}" .`
+  rootFile=${toFile:0:pos}"root"
+  
+  #echo ${RunFile}
+  #echo ${toFile}
+  #echo ${rootFile}
+ 
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Time sort evt to evt.to $NC"
+  if [ $isMerge -eq 1 ]; then
+    if [ -f ${toFile} ]; then #_raw.root exist
+      #check evt DateTime
+      evtDateTime=`stat -c "%Z"  ${RunFile} | sort -rn | head -1`  
+      toDateTime=`stat -c "%Z" ${toFile} | sort -rn | head -1`
+      if [ $evtDateTime -gt $toDateTime ]; then #if evt file is newer
+        ./armory/pxi-time-order ${RunFile}
+        echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Time sort finished$NC"
+      else
+        echo "there is no newer evt files"
+      fi
     else
-      echo -e "${RunFolder}.root is up-to-date."
+      ./armory/pxi-time-order ${RunFile}
+      echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Time sort finished$NC"
     fi
+  fi
+
+  if [ $isMerge -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ $isMerge -eq -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    ./armory/pxi-time-order ${RunFile}
+    echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Time sort finished$NC"
+  fi
+
+
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events $NC"
+  if [ ${isBuildEvents} -ge 1 ]; then
+    if [ -f ${rootFolder} ]; then # root exist
+      toDateTime=`stat -c "%Z" ${toFolder} | sort -rn | head -1`
+      rootDateTime=`stat -c "%Z" ${rootFolder} | sort -rn | head -1`
+      if [ ${toDateTime} -gt ${rootDateTime} ]; then
+        
+        if [ ${isBuildEvents} -gt 1 ]; then
+          ./armory/to2root ${toFile} $TIMEWINDOW ${isBuildEvents}
+        else
+          ./armory/to2root ${toFile} $TIMEWINDOW
+        fi
+        echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
+      else
+        echo -e "${rootFile} is up-to-date."
+      fi
+    else
+      ./armory/to2root ${toFile} $TIMEWINDOW
+      echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
+    fi 
+  fi
+
+  if [ ${isBuildEvents} -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ ${isBuildEvents} -le -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    if [ ${isBuildEvents} -lt 1 ]; then
+      ./armory/to2root ${toFile} $TIMEWINDOW ${isBuildEvents}
+    else
+      ./armory/to2root ${toFile} $TIMEWINDOW
+    fi
+    echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
+  fi
+
+
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Analysis $NC"
+  if [ ${isAnalysis} -eq 1 ]; then
+    root -l "process_run.c(\"${rootFile}\")"
+  fi
+
+  if [ ${isAnalysis} -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ ${isAnalysis} -eq -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    root -l "process_run.c(\"${rootFile}\")"
+  fi
+
+
+fi
+
+
+
+################################### method 2 evt -> _raw.root -> root
+if [ $Method -eq 2 ]; then
+
+  if [ -f $DATA_DIR/$RunFolder/*.evt ]; then 
+    echo -e "found evt files."
   else
-  ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
-  fi 
+    echo -e "cannot found any evt files in $DATA_DIR/$RunFolder/. Abort."
+    exit
+  fi
+
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge evt files to ${RunFolder}_raw.root $NC"
+  if [ $isMerge -eq 1 ]; then
+    # check is ${RunFolder}"_raw.root" exist
+    if [ -f ${RunFolder}_raw.root ]; then #_raw.root exist
+      #check evt DateTime
+      evtDateTime=`stat -c "%Z"  $DATA_DIR/$RunFolder/*.evt | sort -rn | head -1`  
+      rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
+      if [ $evtDateTime -gt $rawRootDateTime ]; then #if evt file is newer
+        ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+      else
+        echo "there is no newer evt files"
+      fi
+    else
+      ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+    fi
+  fi
+
+  if [ $isMerge -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ $isMerge -eq -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    ./armory/MergeEVT ${RunFolder}"_raw.root" `ls ${DATA_DIR}/${RunFolder}/*.evt`
+  fi
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Merge finished$NC"
+
+
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events$NC"
+  if [ ${isBuildEvents} -eq 1 ]; then
+    if [ -f ${RunFolder}.root ]; then # root exist
+      rawRootDateTime=`stat -c "%Z" ${RunFolder}"_raw.root" | sort -rn | head -1`
+      rootDateTime=`stat -c "%Z" ${RunFolder}".root" | sort -rn | head -1`
+      
+      if [ ${rawRootDateTime} -gt ${rootDateTime} ]; then
+        ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
+      else
+        echo -e "${RunFolder}.root is up-to-date."
+      fi
+    else
+    ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
+    fi 
+  fi
+
+  if [ ${isBuildEvents} -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ ${isBuildEvents} -eq -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
+  fi
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
+
+
+  echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Analysis $NC"
+  if [ ${isAnalysis} -eq 1 ]; then
+    root -l "process_run.c(\"${RunFolder}.root\")"
+  fi
+
+  if [ ${isAnalysis} -eq 0 ]; then
+    echo -e "$YELLOW skipped by user $NC"
+  fi
+
+  if [ ${isAnalysis} -eq -1 ]; then
+    echo -e "$YELLOW forced by user $NC"
+    root -l "process_run.c(\"${RunFolder}.root\")"
+  fi
 
 fi
 
-if [ ${isBuildEvents} -eq 0 ]; then
-  echo -e "$YELLOW skipped by user $NC"
-fi
 
-if [ ${isBuildEvents} -eq -1 ]; then
-  echo -e "$YELLOW forced by user $NC"
-  ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
-fi
-echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
-
-
-echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Analysis $NC"
-if [ ${isAnalysis} -eq 1 ]; then
-  root -l "process_run.c(\"${RunFolder}.root\")"
-fi
-
-if [ ${isAnalysis} -eq 0 ]; then
-  echo -e "$YELLOW skipped by user $NC"
-fi
-
-if [ ${isAnalysis} -eq -1 ]; then
-  echo -e "$YELLOW forced by user $NC"
-  root -l "process_run.c(\"${RunFolder}.root\")"
-fi
 
