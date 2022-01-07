@@ -70,10 +70,10 @@ void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMi
       int hID = nCrystalPerClover * CloverID + i ;
       if( cali ) {
          heCal[hID]->SetMaximum(maxY);
-         heCal[hID]->Draw("");
+         heCal[hID]->Draw("same");
       }else{
          he[hID]->SetMaximum(maxY);
-         he[hID]->Draw("");
+         he[hID]->Draw("same");
       }
       
       

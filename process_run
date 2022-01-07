@@ -3,6 +3,8 @@
 DIR=$(pwd)
 DATA_DIR=data
 
+TIMEWINDOW=100
+
 if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
   echo "$./process_run [Run Folder] [Merge] [isBuildEvents] [Analysis]"
   echo "     Run Folder = the name of run folder"
@@ -77,12 +79,12 @@ if [ ${isBuildEvents} -eq 1 ]; then
     rootDateTime=`stat -c "%Z" ${RunFolder}".root" | sort -rn | head -1`
     
     if [ ${rawRootDateTime} -gt ${rootDateTime} ]; then
-      ./armory/EventBuilder ${RunFolder}"_raw.root"
+      ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
     else
       echo -e "${RunFolder}.root is up-to-date."
     fi
   else
-  ./armory/EventBuilder ${RunFolder}"_raw.root"
+  ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
   fi 
 
 fi
@@ -93,7 +95,7 @@ fi
 
 if [ ${isBuildEvents} -eq -1 ]; then
   echo -e "$YELLOW forced by user $NC"
-  ./armory/EventBuilder ${RunFolder}"_raw.root"
+  ./armory/EventBuilder ${RunFolder}"_raw.root" $TIMEWINDOW
 fi
 echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
 

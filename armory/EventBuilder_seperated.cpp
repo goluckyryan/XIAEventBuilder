@@ -13,7 +13,31 @@
 
 #include "../mapping.h"
 
-#define MAXMULTI 200
+Int_t eventID = 0 ;
+double       e[NCRYSTAL];
+ULong64_t   e_t[NCRYSTAL];
+double    bgo[NBGO];
+ULong64_t bgo_t[NBGO];
+Short_t   other[NOTHER];
+Short_t  multi;
+
+void ClearTreeData(){
+   
+   for( int i = 0; i < NCRYSTAL; i++){
+      e[i]      = TMath::QuietNaN();
+      e_t[i]    = 0;
+      //pileup[i] = 0;
+      //hit[i]    = 0;
+   }
+   for( int i = 0; i < NBGO; i++) {
+      bgo[i]   = TMath::QuietNaN();
+      bgo_t[i] = 0 ;
+   }
+   for( int i = 0; i < NOTHER; i++) {
+      other[i] = TMath::QuietNaN(); 
+   }
+   multi = 0;
+}
 
 int main(int argn, char **argv){
   printf("=====================================\n");
@@ -81,26 +105,26 @@ int main(int argn, char **argv){
   saveFile->cd();
   TTree * newtree = new TTree("tree", "tree");
   
-  Int_t multi = 0; /// this is total multipicilty for all detectors
-  newtree->Branch("multi", &multi, "multipiclity/I");  
-
-  Int_t eventID = 0 ;
   newtree->Branch("evID", &eventID, "event_ID/l"); 
+  newtree->Branch("e",         e, Form("e[%d]/D", NCRYSTAL));
+  newtree->Branch("e_t",     e_t, Form("e_timestamp[%d]/l", NCRYSTAL));
+  //newtree->Branch("p",    pileup, Form("pile_up_flag[%d]/s", NCRYSTAL));
+  //newtree->Branch("hit",     hit, Form("hit[%d]/s", NCRYSTAL));
+
+  newtree->Branch("bgo",     bgo, Form("BGO_e[%d]/D", NBGO));
+  newtree->Branch("bgo_t", bgo_t, Form("BGO_timestamp[%d]/l", NBGO));
+
+  newtree->Branch("other", other, Form("other_e[%d]/D", NOTHER));
+
+  newtree->Branch("multi", &multi, "multiplicity_crystal/I");
   
-  Int_t multiCry = 0 ; /// thi is total multiplicity for all crystal
-  newtree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
-  
-  int id[MAXMULTI];
-  double e[MAXMULTI];    
-  ULong64_t e_t[MAXMULTI];
-  newtree->Branch("id",       id, "id[multipiclity]/I" );
-  newtree->Branch("e",         e, "e[multipiclity]/D" );
-  newtree->Branch("e_t",     e_t, "e_timestamp[multipiclity]/l");
+  ClearTreeData();
   
   printf("================== Start processing....\n");
   Float_t Frac = 0.1; ///Progress bar
   TStopwatch StpWatch;
   StpWatch.Start();
+  eventID = 0;
   
   for( Long64_t entry = 0; entry < totnumEntry; entry++){
     
@@ -121,47 +145,52 @@ int main(int argn, char **argv){
     b_energy->GetEntry(entry);
     b_energy_timestamp->GetEntry(entry);
     
-    if( time0 == 0) {
-      time0 = energy_t;
-      multi = 0;
-    }
+    if( time0 == 0) time0 = energy_t;
     timeDiff = (int) (energy_t - time0);
-  
-  
+
     if( timeDiff < timeWindow ) {
       
-      id[multi] = detID;
-      e[multi] = energy;
-      e_t[multi] = energy_t;
-      multi ++;
-      if( detID < NCRYSTAL ) multiCry++;
+      if ( detID < NCRYSTAL ){
+         e[detID] = energy;
+         e_t[detID] = energy_t;
+         multi++;
+      }
+      if ( 100 <= detID && detID < 100 + NBGO ){
+         bgo[detID-100]   = energy;
+      bgo_t[detID-100] = energy_t;
+      }
+      if ( 200 <= detID && detID < 200 + NOTHER){
+         other[detID-200] = energy;
+      }
+      
+      //printf("%d | %3d   %6d  %10llu, %3d\n", multi, detID, energy, energy_t, timeDiff);
       
     }else{
-      ///---- end of event
+      //---- end of event
+      eventID ++;
+
       saveFile->cd();
       newtree->Fill();
-      eventID ++;
       
-      ///---- clear data
-      for( int i = 0; i < multi ; i ++){
-        id[i] = 0;
-        e[i] = TMath::QuietNaN();
-        e_t[i] = 0;
-      }
-      multi = 0;
-      multiCry = 0;
-      
+      ClearTreeData();
       
       /// fill 1st data of an event                  
       time0 = energy_t;
       timeDiff = 0;
-
-      id[multi] = detID;
-      e[multi] = energy;
-      e_t[multi] = energy_t;
-      multi++;
-      if( detID < NCRYSTAL ) multiCry++;
-
+      
+      if ( detID < NCRYSTAL ){
+         e[detID] = energy;
+         e_t[detID] = energy_t;
+         multi = 1;
+      }
+      if ( 100 <= detID && detID < 100 + NBGO ){
+         bgo[detID-100]   = energy;
+      bgo_t[detID-100] = energy_t;
+      }
+      if ( 200 <= detID && detID < 200 + NOTHER){
+         other[detID-200] = energy;
+      }
+      
     }
     
   }

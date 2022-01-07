@@ -102,64 +102,62 @@ Bool_t Analyzer::Process(Long64_t entry){
 
    b_energy->GetEntry(entry);
    b_time->GetEntry(entry);
-   //b_pileup->GetEntry(entry);
-   //b_hit->GetEntry(entry);
-   b_bgo->GetEntry(entry);
-   b_bgoTime->GetEntry(entry);
-   b_other->GetEntry(entry);
    b_multi->GetEntry(entry);
+   b_multiCry->GetEntry(entry);
+   b_detID->GetEntry(entry);
    
    if( multi == 0 ) return kTRUE;
    
    for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
 
-   ///=========== Looping Crystals
-   for( int detID = 0; detID < NCRYSTAL ; detID ++){
-      
-      //======== baics gate when no energy or pileup 
-      if( TMath::IsNaN(e[detID])) continue;
-      //if( pileup[detID] == 1 ) continue;
-      
+   ///=========== Looping data for the event
+   for( int i = 0; i < multi ; i ++){
+
       //======== Fill raw data
-      heVID->Fill( detID, e[detID]);
-      he[detID]->Fill(e[detID]);
-      
-      for( int kk = 0 ; kk < NBGO; kk++){
-         if( bgo[kk] > 0 ) hcrystalBGO->Fill(detID, kk);
-      }
-      
-      
-      for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
-         if( TMath::IsNaN(e[detJ])) continue;
-         //hgg[detID][detJ]->Fill(e[detID], e[detJ]); // x then y
-         hcoin->Fill(detID, detJ); 
-      }
-      
-      //======== BGO veto
-      for( int kk = 0; kk < NBGO ; kk++){
-         if( TMath::IsNaN(bgo[kk]) ) continue;
-         if( bgo[kk] > BGO_threshold  &&  4*kk <= detID && detID < 4*(kk+1) ) {
-            return kTRUE;
+      if( detID[i] < 100 ){  /// gamma data
+         heVID->Fill( detID[i], e[i]);
+         he[detID[i]]->Fill(e[i]);
+         
+         for ( int j = i + 1; j < multi; j++){
+            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO->Fill(detID[i], detID[j]-100); /// crystal - BGO coincident 
+            
+            if( detID[j] < 100 ) hcoin->Fill(detID[i], detID[j]); /// crystal-crystal coincident 
+            
          }
       }
+      
+      if ( 100 < detID[i] && detID[i] < 200 ){ /// BGO data
+         
+      }
+      
+      
+      //======== BGO veto
+      bool dropflag = false;
+      if( detID[i] < 100 && multi > 1) {
+         for( int j =  i + 1; j < multi; j++){
+            if( detID[j] > 100 && (detID[j]-100)*4 < detID[i] && detID[i] < (detID[j]-100 +1)*4) {
+               dropflag = true;
+               break;
+            }
+         }
+      }
+      if( dropflag ) return kTRUE;
       
       //========= apply correction
       //int order = (int) eCorr[detID].size();
       //for( int i = 0; i < order ; i++){
       //   eCal[detID] += eCorr[detID][i] * TMath::Power(e[detID], i);
       //}
-      if( e_corr == "" ){
-         eCal[detID] = e[detID];
-      }else{
-         eCal[detID] = eCorr[detID][0] + eCorr[detID][1] * e[detID];
-      }
       
-      heCalVID->Fill( detID, eCal[detID]);
-      heCal[detID]->Fill(eCal[detID]);
-      
-      for( int detJ = detID +1; detJ < NCRYSTAL; detJ++) {
-         if( TMath::IsNaN(e[detJ])) continue;
-         hcoinBGO->Fill(detID, detJ); 
+      if( detID[i] < 100 ) {
+         if( e_corr == "" ){
+            eCal[detID[i]] = e[i];
+         }else{
+            eCal[detID[i]] = eCorr[detID[i]][0] + eCorr[detID[i]][1] * e[i];
+         }
+         
+         heCalVID->Fill( detID[i], eCal[detID[i]]);
+         heCal[detID[i]]->Fill(eCal[detID[i]]);
       }
    }
    

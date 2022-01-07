@@ -28,25 +28,19 @@ public :
 
    // Declaration of leaf types
    ULong64_t       evID;
-   Double_t        e[NCRYSTAL];
-   ULong64_t       e_t[NCRYSTAL];
-   UShort_t        p[NCRYSTAL];
-   UShort_t        hit[NCRYSTAL];
-   Double_t        bgo[NBGO];
-   ULong64_t       bgo_t[NBGO];
-   Double_t        other[NOTHER];
+   Int_t           detID[200];
+   Double_t        e[200];
+   ULong64_t       e_t[200];
    Int_t           multi;
+   Int_t           multiCry;
 
    // List of branches
    TBranch        *b_event_ID;   //!
+   TBranch        *b_detID;     //!
    TBranch        *b_energy;   //!
    TBranch        *b_time;   //!
-   TBranch        *b_pileup;   //!
-   TBranch        *b_hit;   //!
-   TBranch        *b_bgo;   //!
-   TBranch        *b_bgoTime;   //!
-   TBranch        *b_other;   //!
    TBranch        *b_multi;   //!
+   TBranch        *b_multiCry;   //!
 
    Analyzer(TTree * /*tree*/ =0) : fChain(0) { totnumEntry = 0; 
                                                Frac = 0.1; 
@@ -104,15 +98,12 @@ void Analyzer::Init(TTree *tree)
    fChain = tree;
    fChain->SetMakeClass(1);
 
-   fChain->SetBranchAddress("evID",   &evID, &b_event_ID);
-   fChain->SetBranchAddress("e",          e, &b_energy);
-   fChain->SetBranchAddress("e_t",      e_t, &b_time);
-   //fChain->SetBranchAddress("p",          p, &b_pileup);
-   //fChain->SetBranchAddress("hit",      hit, &b_hit);
-   fChain->SetBranchAddress("bgo",      bgo, &b_bgo);
-   fChain->SetBranchAddress("bgo_t",  bgo_t, &b_bgoTime);
-   fChain->SetBranchAddress("other",  other, &b_other);
-   fChain->SetBranchAddress("multi", &multi, &b_multi);
+   fChain->SetBranchAddress("evID",         &evID, &b_event_ID);
+   fChain->SetBranchAddress("id",           detID, &b_detID);
+   fChain->SetBranchAddress("e",                e, &b_energy);
+   fChain->SetBranchAddress("e_t",            e_t, &b_time);
+   fChain->SetBranchAddress("multi",       &multi, &b_multi);
+   fChain->SetBranchAddress("multiCry", &multiCry, &b_multiCry);
 
    TString option = GetOption();
    if ( option != "" ) outEV2Name = option;
