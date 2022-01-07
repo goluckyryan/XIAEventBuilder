@@ -31,6 +31,8 @@
 
 #define RAWE_REBIN_FACTOR 2.0 // Rebin 32k pixie16 spectra to something smaller to fit better into 8k.
 
+#define MAXMULTI 100 
+
 #include "../mapping.h"  
 
 /////////////////////
@@ -58,7 +60,6 @@ struct measurement
 }; 
 struct measurement data = {0};
 
-int sevtmult=0;
 unsigned long long int dataCount=0;
 unsigned long long int pileUpCount=0;
 unsigned long long int evtCount=0;
@@ -106,35 +107,22 @@ int main(int argc, char **argv) {
   outRootFile->cd();
   TTree * tree = new TTree("tree", "tree");
 
-  unsigned long long evID = -1;
-  
-  double               e[NCRYSTAL];  
-  unsigned long long e_t[NCRYSTAL];
-  unsigned short  pileup[NCRYSTAL];
-  unsigned short     hit[NCRYSTAL]; // number of hit in an event
+  unsigned long long          evID = 0;
+  int                        multi = 0;
+  int                 id[MAXMULTI] = {0};
+  double               e[MAXMULTI] = {TMath::QuietNaN()};  
+  unsigned long long e_t[MAXMULTI] = {0};
+  Int_t                   multiCry = 0 ; /// this is total multiplicity for all crystal
 
-  double                 bgo[NBGO]; 
-  unsigned long long   bgo_t[NBGO];
-
-  double  other[NOTHER];
-  
-  int multi; //sum of all crystal hit in an event 
+  //unsigned short  pileup[MAXMULTI];
+  //unsigned short     hit[MAXMULTI]; // number of hit in an event
 
   tree->Branch("evID", &evID, "event_ID/l"); 
-  
-  //TODO: use TCloneArray to save measurement struc, that can save space and possibly time.
-  ///tree->Branch("detID", detID, Form("det ID[%d]/B", NCRYSTAL));
-  tree->Branch("e",      e, Form("e[%d]/D", NCRYSTAL));
-  tree->Branch("e_t",  e_t, Form("e_timestamp[%d]/l", NCRYSTAL));
-  tree->Branch("p", pileup, Form("pile_up_flag[%d]/s", NCRYSTAL));
-  tree->Branch("hit",  hit, Form("hit[%d]/s", NCRYSTAL));
-  
-  tree->Branch("bgo",     bgo, Form("BGO_e[%d]/D", NBGO));
-  tree->Branch("bgo_t", bgo_t, Form("BGO_timestamp[%d]/l", NBGO));
-  
-  tree->Branch("other", other, Form("other_e[%d]/D", NOTHER));
-  
-  tree->Branch("multi", &multi, "multiplicity_crystal/I");
+  tree->Branch("multi", &multi, "multi/I"); 
+  tree->Branch("id",    id, "id[multi]/I");
+  tree->Branch("e",      e, "e[multi]/D");
+  tree->Branch("e_t",  e_t, "e_timestamp[multi]/l");
+  tree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
   
   //open list-mode data file from PXI digitizer  
   FILE *fpr = fopen(argv[1], "r");
@@ -153,8 +141,6 @@ int main(int argc, char **argv) {
   gClock.Reset();
   gClock.Start("timer");
   
-  int hitcrystal[NCRYSTAL] = {0};
-  
   /////////////////////
   // MAIN WHILE LOOP //
   /////////////////////
@@ -164,25 +150,8 @@ int main(int argc, char **argv) {
       // UNPACK DATA AND EVENT BUILD //
       /////////////////////////////////
       
-      //data clear
-      for( int i = 0; i < NCRYSTAL; i++){
-         e[i]      = TMath::QuietNaN();
-         e_t[i]    = 0;
-         pileup[i] = 0;
-         hit[i]    = 0;
-      }
-      for( int i = 0; i < NBGO; i++) {
-        bgo[i]   = TMath::QuietNaN();
-        bgo_t[i] = 0 ;
-      }
-      for( int i = 0; i < NOTHER; i++) {
-        other[i] = TMath::QuietNaN();
-      }
-      multi = 0;
-      evID++;	
-      
-      long long int etime=-1; 
-      long long int tdif=-1; 
+      long long int etime = -1; 
+      long long int tdif = -1; 
       int sevtmult=0;  
       
       while (1) { //get subevents and event build for one "event" 
@@ -206,25 +175,13 @@ int main(int argc, char **argv) {
         
         tempf = (float)data.e/RAWE_REBIN_FACTOR;// + RAND;
         data.e = (int)tempf;  
-        
-        //check lengths (sometimes all of the bits for trace length are turned on ...)
-        /**if (dataBlock[sevtmult].elen - dataBlock[sevtmult].hlen != dataBlock[sevtmult].trwlen) {
-            printf("SEVERE ERROR: event, header, and trace length inconsistencies found\n");
-            printf("event length = %d\n", dataBlock[sevtmult].elen);
-            printf("header length = %d\n", dataBlock[sevtmult].hlen);
-            printf("trace length = %d\n", dataBlock[sevtmult].trwlen);  
-            printf("Extra = %d\n", dataBlock[sevtmult].extra); 
-            printf("fcode = %d\n", dataBlock[sevtmult].fcode);              
-            //sleep(1);          
-            //return 0;
-        } */ 
        
         //Set reference time for event building
         if (etime == -1) {
             etime = data.time;
             tdif = 0;
-        }
-        else {
+            multi = 0;
+        }else {
             tdif = data.time - etime;
         }    
       
@@ -234,21 +191,12 @@ int main(int argc, char **argv) {
             break;           
         }else{
           //if within time window, fill array;
-          int detID = mapping[data.id];
-          if ( 0 <= detID && detID < NCRYSTAL ){
-              e[detID] = data.e;
-              e_t[detID] = data.time;
-              pileup[detID] = data.fcode;
-              hit[detID] ++;
-              multi++;
-          }
-          if ( 100 <= detID && detID < 100 + NBGO ){
-              bgo[detID-100]   = data.e;
-              bgo_t[detID-100] = data.time;
-          }
-          if ( 200 <= detID && detID < 200 + NOTHER){
-              other[detID-200] = data.e;
-          }
+          int detID  = mapping[data.id];
+          id[multi]  = detID;
+          e[multi]   = data.e;
+          e_t[multi] = data.time;
+          multi++ ;
+          if( detID < 100 ) multiCry ++;
         }    
                
         // total pileups
@@ -300,48 +248,25 @@ int main(int argc, char **argv) {
             }
         }    
         */
-        sevtmult++;
      
       } //end while loop for unpacking sub events and event building for one "event"
-      if (sevtmult==0) break; //end main WHILE LOOP when out of events 
-      dataCount += sevtmult;
-      evtCount++; //event-built number
-      
-
-      int hit_add = 0;
-      for ( int i = 0; i < NCRYSTAL; i++){
-        if( hit[i] > 1 ) {
-          hit_add = 1;
-          hitcrystal[i] ++;
-        }
-      }
-      
-      ///if( hit_add == 1 ){
-      ///  for ( int i = 0; i < NCRYSTAL; i++){ printf("%d", hit[i]); }
-      ///  printf("------------%d\n", hitcrystal); 
-      ///}
-      
-      ///if( evtCount < 40 ) {
-      ///  printf("------------------------------------- %lld \n", evtCount);
-      ///  for( int i = 0; i < NCRYSTAL; i++){
-      ///    if(e[i] > 0 )printf("%2d  %6.0f  %10llu\n", i, e[i], e_t[i]);
-      ///  }
-      ///  
-      ///}
+      if (multi==0) break; //end main WHILE LOOP when out of events 
+      dataCount += multi;
+      evID ++;
       
       /////////////////////////////////////
       // END UNPACK DATA AND EVENT BUILD //
       /////////////////////////////////////
 
       //event stats, print status every 10000 events
-      if ( evtCount % 10000 == 0 ) {
+      if ( evID % 10000 == 0 ) {
         fprpos = ftell(fpr);
         tempf = (float)fprsize/(1024.*1024.*1024.);
         gClock.Stop("timer");
         double time = gClock.GetRealTime("timer");
         gClock.Start("timer");
         printf("Total dataBlock: \x1B[32m%llu \x1B[31m(%d%% pileup)\x1B[0m\nTotal Events: \x1B[32m%llu (%.1f <mult>)\x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[3A\r", 
-                   dataCount, (int)((100*pileUpCount)/dataCount), evtCount, (float)dataCount/(float)evtCount, (100*fprpos/fprsize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   dataCount, (int)((100*pileUpCount)/dataCount), evID+1, (float)dataCount/((float)evID+1), (100*fprpos/fprsize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
       }      
 
       
@@ -356,7 +281,7 @@ int main(int argc, char **argv) {
   fprpos = ftell(fpr);
   tempf = (float)fprsize/(1024.*1024.*1024.);
   printf("Total SubEvents: \x1B[32m%llu \x1B[31m(%d%% pileup)\x1B[0m\nTotal Events: \x1B[32m%llu (%.1f <mult>)\x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\n\033[3A\n", 
-  dataCount, (int)((100*pileUpCount)/dataCount), evtCount, (float)dataCount/(float)evtCount, (100*fprpos/fprsize), tempf);
+  dataCount, (int)((100*pileUpCount)/dataCount), evID+1, (float)dataCount/((float)evID+1), (100*fprpos/fprsize), tempf);
            
 
   outRootFile->cd();
@@ -369,11 +294,7 @@ int main(int argc, char **argv) {
   double time = gClock.GetRealTime("timer");
   printf("\n\n==================== finished.\r\n");
   printf("Total time spend : %3.0f min %5.2f sec\n", TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
-    
-  printf("number of hit per crystal per event:\n");
-  for( int i = 0; i < NCRYSTAL ; i++){
-    printf("%2d -- %d \n", i, hitcrystal[i]);
-  }
+
   return 0;
 }
 

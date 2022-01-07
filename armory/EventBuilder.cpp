@@ -75,17 +75,18 @@ int main(int argn, char **argv){
   outFileName.Append(".root");
   if( argn >=4 ) outFileName = argv[3];
   
-  printf(">>> out File name : \033[1,31m%s\033[m\n", outFileName.Data());
+  printf(">>> out File name : \033[1;31m%s\033[m\n", outFileName.Data());
   
   printf(">>> Create output tree\n");
   TFile * saveFile = new TFile(outFileName, "recreate");
   saveFile->cd();
   TTree * newtree = new TTree("tree", "tree");
-  
+
+  Int_t eventID = 0 ;  
   Int_t multi = 0; /// this is total multipicilty for all detectors
   newtree->Branch("multi", &multi, "multi/I");  
 
-  Int_t eventID = 0 ;
+
   newtree->Branch("evID", &eventID, "event_ID/l"); 
   
   Int_t multiCry = 0 ; /// thi is total multiplicity for all crystal
@@ -99,7 +100,7 @@ int main(int argn, char **argv){
   newtree->Branch("e_t",     e_t, "e_timestamp[multi]/l");
   
   printf("================== Start processing....\n");
-  Float_t Frac = 0.1; ///Progress bar
+  Float_t Frac = 0.05; ///Progress bar
   TStopwatch StpWatch;
   StpWatch.Start();
   

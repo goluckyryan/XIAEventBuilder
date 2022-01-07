@@ -32,12 +32,14 @@ TH2F * hgg[NCRYSTAL][NCRYSTAL];
 
 TH2F * hcoin;
 
+TH2F * hcrystalBGO;
+
 ///----- after calibration and BGO veto
 TH2F * heCalVID;
 TH1F * heCal[NCRYSTAL]; 
 TH2F * hcoinBGO;
 
-TH2F * hcrystalBGO;
+TH2F * hcrystalBGO_G;
 
 //############################################ BEGIN
 void Analyzer::Begin(TTree * tree){
@@ -76,6 +78,7 @@ void Analyzer::Begin(TTree * tree){
    
    hcoinBGO = new TH2F("hcoinBGO", Form("detector coin. (BGO veto > %.1f); det ID; det ID", BGO_threshold), NCRYSTAL, 0, NCRYSTAL, NCRYSTAL, 0 , NCRYSTAL); 
    hcrystalBGO = new TH2F("hcrystalBGO", Form("crystal vs BGO ; det ID; BGO ID"), NCRYSTAL, 0, NCRYSTAL, NBGO, 0 , NBGO); 
+   hcrystalBGO_G = new TH2F("hcrystalBGO_G", Form("crystal vs BGO (BGO veto); det ID; BGO ID"), NCRYSTAL, 0, NCRYSTAL, NBGO, 0 , NBGO); 
    
    printf("======================== Load parameters.\n");
    
@@ -158,6 +161,11 @@ Bool_t Analyzer::Process(Long64_t entry){
          
          heCalVID->Fill( detID[i], eCal[detID[i]]);
          heCal[detID[i]]->Fill(eCal[detID[i]]);
+      
+         for ( int j = i + 1; j < multi; j++){
+            if( 100 <= detID[j] && detID[j] < 200 ) hcrystalBGO_G->Fill(detID[i], detID[j]-100); /// crystal - BGO coincident 
+         }   
+      
       }
    }
    
@@ -196,10 +204,11 @@ void Analyzer::Terminate(){
    hcrystalBGO->Draw("colz");
    
    cCanvas->cd(4);
-   //cCanvas->cd(4)->SetLogz(1);
-   he[0]->SetLineColor(2);
-   he[0]->Draw();
-   heCal[0]->Draw("same");
+   cCanvas->cd(4)->SetLogz(1);
+   hcrystalBGO_G->Draw("colz");
+   //he[0]->SetLineColor(2);
+   //he[0]->Draw();
+   //heCal[0]->Draw("same");
    //hcoinBGO->Draw("colz");
 
    printf("=============== loaded AutoFit.C, try showFitMethos()\n");

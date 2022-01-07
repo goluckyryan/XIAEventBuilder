@@ -1,4 +1,4 @@
-#1/bin/bash
+#!/bin/bash
 
 DIR=$(pwd)
 DATA_DIR=data
