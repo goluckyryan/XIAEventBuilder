@@ -6,12 +6,14 @@ DATA_DIR=data
 TIMEWINDOW=100
 
 if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
-  echo "$./process_run [Run Folder] [Merge] [isBuildEvents] [Analysis]"
+  echo "$./process_run [Run Folder] [Merge] [BuildEvents] [Analysis]"
   echo "     Run Folder = the name of run folder"
   echo "          Merge =   1/0/-1    || 1 = merge, 0 = not merge, -1 = force merge "  
-  echo "     isBuildEvents =   1/0/-1    || " 
+  echo "    BuildEvents =   1/0/-1    || " 
   echo "       Analysis =   1/0/-1    || "
   echo ""
+  
+  ls -l --color $DATA_DIR/
   exit 1
 fi;
 
@@ -35,7 +37,7 @@ NC='\033[0m'
 if [ -f $DATA_DIR/$RunFolder/*.evt ]; then 
   echo -e "found evt files."
 else
-  echo -e "cannot found any evt files. Abort."
+  echo -e "cannot found any evt files in $DATA_DIR/$RunFolder/. Abort."
   exit
 fi
 
@@ -103,6 +105,10 @@ echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events finsihed.$NC"
 echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Analysis $NC"
 if [ ${isAnalysis} -eq 1 ]; then
   root -l "process_run.c(\"${RunFolder}.root\")"
+fi
+
+if [ ${isAnalysis} -eq 0 ]; then
+  echo -e "$YELLOW skipped by user $NC"
 fi
 
 if [ ${isAnalysis} -eq -1 ]; then

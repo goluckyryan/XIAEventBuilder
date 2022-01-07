@@ -58,7 +58,9 @@ int main(int argn, char **argv){
   
   Long64_t totnumEntry = tree->GetEntries();
   
-  printf( "total Entry : %lld \n", totnumEntry);
+  printf(" total Entry : %lld \n", totnumEntry);
+
+  printf(" event Build window: %d tick = %d nsec \n", timeWindow, timeWindow * 10);
   
   printf(">>> Buidling Index using the timestamp\n");
   tree->BuildIndex("e_t");
@@ -67,14 +69,13 @@ int main(int argn, char **argv){
   
   ULong64_t time0;  //time-0 for each event
   int       timeDiff; 
-
   
   TString outFileName = inFileName;
   outFileName.Remove(inFileName.First("_raw"));
   outFileName.Append(".root");
   if( argn >=4 ) outFileName = argv[3];
   
-  printf(">>> out File name : %s\n", outFileName.Data());
+  printf(">>> out File name : \033[1,31m%s\033[m\n", outFileName.Data());
   
   printf(">>> Create output tree\n");
   TFile * saveFile = new TFile(outFileName, "recreate");
@@ -82,7 +83,7 @@ int main(int argn, char **argv){
   TTree * newtree = new TTree("tree", "tree");
   
   Int_t multi = 0; /// this is total multipicilty for all detectors
-  newtree->Branch("multi", &multi, "multipiclity/I");  
+  newtree->Branch("multi", &multi, "multi/I");  
 
   Int_t eventID = 0 ;
   newtree->Branch("evID", &eventID, "event_ID/l"); 
@@ -93,9 +94,9 @@ int main(int argn, char **argv){
   int id[MAXMULTI];
   double e[MAXMULTI];    
   ULong64_t e_t[MAXMULTI];
-  newtree->Branch("id",       id, "id[multipiclity]/I" );
-  newtree->Branch("e",         e, "e[multipiclity]/D" );
-  newtree->Branch("e_t",     e_t, "e_timestamp[multipiclity]/l");
+  newtree->Branch("id",       id, "id[multi]/I" );
+  newtree->Branch("e",         e, "e[multi]/D" );
+  newtree->Branch("e_t",     e_t, "e_timestamp[multi]/l");
   
   printf("================== Start processing....\n");
   Float_t Frac = 0.1; ///Progress bar
@@ -117,16 +118,15 @@ int main(int argn, char **argv){
     
     entry = index[entry];
     
-    b_ID->GetEntry(entry);
-    b_energy->GetEntry(entry);
-    b_energy_timestamp->GetEntry(entry);
+    b_ID->GetEntry(entry, 0);
+    b_energy->GetEntry(entry, 0);
+    b_energy_timestamp->GetEntry(entry, 0);
     
     if( time0 == 0) {
       time0 = energy_t;
       multi = 0;
     }
     timeDiff = (int) (energy_t - time0);
-  
   
     if( timeDiff < timeWindow ) {
       
