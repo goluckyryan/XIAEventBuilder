@@ -291,14 +291,5 @@ std::vector<std::vector<double>> LoadCorrectionParameters(TString corrFile, bool
   return corr;
 }
 
-double ApplyCorrection(std::vector<std::vector<double>> corr, int corrRow, double value){
-  double eCal = 0 ;
-  int order = (int) corr[corrRow].size();
-  for( int i = 0; i < order ; i++){
-     eCal += corr[corrRow][i] * TMath::Power(value, i);
-  }
-  return eCal;
-}
-
 #endif 
 
