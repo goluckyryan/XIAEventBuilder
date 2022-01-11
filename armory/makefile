@@ -4,7 +4,8 @@ CC=g++
 #all: xia2root  xia2ev2_nopart pixie2root scan evt2root evt2hist
 #all: xia2root  to2root MergeEVT evt2hist pxi-time-order ev22txt EventBuilder
 #all: xia2root  to2root MergeEVT pxi-time-order ev22txt EventBuilder
-all: to2root MergeEVT ev22txt EventBuilder pxi-time-order
+#all: to2root MergeEVT ev22txt EventBuilder pxi-time-order
+all: to2root evt2hist MergeEVT ev22txt EventBuilder pxi-time-order
 
 #this is FSU evt to root
 xia2root: ../armory/xia2root.cpp
