@@ -20,7 +20,7 @@ if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
   echo ""
   
   if [ $Method -eq 1 ]; then 
-    ls -l --color $DATA_DIR/ 
+    ls -l --color $DATA_DIR/data/ 
   fi
   
   exit 1
@@ -101,7 +101,7 @@ if [ $Method -eq 1 ]; then
 
   echo -e "$RED>>> `date` >>>>>>>>>>>>>>>>>>>>>>> Build Events $NC"
   if [ ${isBuildEvents} -eq 1 ]; then
-    if [ -f ${rootFolder} ]; then # root exist
+    if [ -f ${rootFile} ]; then # root exist
       toDateTime=`stat -c "%Z" ${toFile} | sort -rn | head -1`
       rootDateTime=`stat -c "%Z" ${rootFile} | sort -rn | head -1`
       if [ ${toDateTime} -gt ${rootDateTime} ]; then

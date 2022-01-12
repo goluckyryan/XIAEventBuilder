@@ -154,13 +154,14 @@ void Analyzer::Save2ev2(){
    }
 
    out0[0] = count;
-   fwrite(out0, 1, 1, outEV2); 
-
+   if( count == 0 ) return;
+   
+   fwrite(out0, 1, 1, outEV2);
    for( int i = 0; i < count; i++){
       if( TMath::IsNaN(eCal[i]) ) continue;
       outa[0] = i;
       fwrite(outa, 1, 1, outEV2); 
-      outb[0] = eCal[i];
+      outb[0] = TMath::Nint(eCal[i]);
       fwrite(outb, 2, 1, outEV2); 
    }
 

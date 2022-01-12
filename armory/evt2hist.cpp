@@ -5,15 +5,19 @@
 #include <string.h>
 #include <vector>
 
+#include "TSystem.h"
+#include "TObject.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TString.h"
 #include "TMath.h"
+#include "TGraph.h"
+#include "TLatex.h"
 #include "TBenchmark.h"
 #include "TH1F.h"
 #include "TApplication.h"
 #include "TCanvas.h"
-#include "TSystem.h"
+#include "TClonesArray.h"
 
 #include "../mapping.h"
 #include "../armory/AnalysisLibrary.h"
@@ -24,11 +28,9 @@
 #define BOARD_START 2
 
 //#############################TODO
-//  1) Get ADC data
+//  1) multiple file
 //  2) Change to GUI
-//  3) calibration gamma
-
-int rawEnergyThreshold = 100;
+//  4) eventBuilding
 
 class measurment{
 
@@ -49,7 +51,7 @@ public:
   Int_t             leading;
   Int_t                 gap;
   Int_t            baseline;
-  Int_t              ADC[8];
+  Int_t           QDCsum[8];
   
   UShort_t id;
   Int_t  detID;
@@ -82,7 +84,7 @@ public:
     leading = 0;
     gap = 0;
     baseline = 0;
-    for( int i = 0; i < 8; i++) ADC[i] = -1;
+    for( int i = 0; i < 8; i++) QDCsum[i] = -1;
     for( int i = 0; i < 1024; i++) trace[i] = 0;
   }
   
@@ -98,8 +100,8 @@ public:
         printf(" gap      : %d\n", gap);
         printf(" baseLine : %d\n", baseline);
       }
-      printf(" ADC : \n");
-      for( int i = 0; i < 8; i++) printf("    %-10d\n", ADC[i]);
+      printf(" QDCsum : \n");
+      for( int i = 0; i < 8; i++) printf("    %-10d\n", QDCsum[i]);
     }
     if( eventLength > headerLength ){
       printf(" trace:\n");
@@ -114,10 +116,14 @@ public:
 //###############################################
 int main(int argn, char **argv) {
     
-  if (argn != 2 && argn != 3 )    {
+  if (argn < 2 || argn > 6 )    {
     printf("Usage :\n");
-    printf("%s [evt File]  [E corr]\n", argv[0]);
-    printf("         [E corr] : correction file for gamma energy \n");       
+    printf("%s [evt File]  [E corr] [raw E threshold] [Save Hist] [Save Root]\n", argv[0]);
+    printf("          [E corr] : correction file for gamma energy \n");       
+    printf(" [raw E threshold] : min raw E \n");       
+    printf("       [save Hist] : 1/0 \n");       
+    printf("       [save Root] : 1/0 \n");       
+    
     return 1;
   }
   
@@ -130,7 +136,17 @@ int main(int argn, char **argv) {
     eCorr.clear();
     eCorr = LoadCorrectionParameters(corrFile);
   }
-  
+
+  int rawEnergyThreshold = 100;
+  if( argn >= 4 ) rawEnergyThreshold = atoi(argv[3]);
+
+  bool isSaveHist = false; ///save gamma hist for calibration
+  if( argn >= 5 ) isSaveHist = atoi(argv[5]);
+
+  bool isSaveRoot = false; ///save data into root
+  if( argn >= 6 ) isSaveRoot = atoi(argv[6]);
+
+
   long int inFilePos;
   TBenchmark gClock;
   gClock.Reset();
@@ -148,10 +164,23 @@ int main(int argn, char **argv) {
     return -404;
   }
 
-  printf(" in file: \003[1;31m%s\033[m\n", inFileName.Data());
+  printf(" in file: \033[1;31m%s\033[m\n", inFileName.Data());
   printf(" Gamma energy correction file : %s\n", corrFile == "" ? "Not provided." : corrFile.Data());
   printf("--------------------------------\n");
   
+  TFile * fFile = NULL;
+  TTree * tree = NULL; 
+  if( isSaveRoot ){
+    fFile = new TFile("temp.root", "RECREATE");
+    tree = new TTree("tree", "tree");
+    
+    tree->Branch("detID",               &data.detID, "detID/s");
+    tree->Branch("e",                  &data.energy, "energy/s");
+    tree->Branch("e_t",                  &data.time, "timestamp/l");
+    tree->Branch("qdc",                 data.QDCsum, "QDC_sum[8]/I");
+    tree->Branch("trace_length", &data.trace_length, "trace_length/s");
+    tree->Branch("trace",               data.trace, "trace[trace_length]/s"); 
+  }
 
   //================ get file size
   fseek(inFile, 0L, SEEK_END);
@@ -162,7 +191,7 @@ int main(int argn, char **argv) {
   //================ Historgrams
   TH1F * he[NCRYSTAL];
   for( int i = 0 ; i < NCRYSTAL; i++){
-    he[i] = new TH1F(Form("he%02d", i), Form("e-%2d", i), 1000, 0, 2000);
+    he[i] = new TH1F(Form("he%02d", i), Form("e-%2d", i), 2000, 0, 2000);
     switch (i % 4){
       case 0 : he[i]->SetLineColor(2); break;
       case 1 : he[i]->SetLineColor(4); break;
@@ -170,12 +199,19 @@ int main(int argn, char **argv) {
       case 3 : he[i]->SetLineColor(kGreen+3); break;
     }
   }
+  
+  TGraph * gTrace = new TGraph();
+  TLatex text;
+  text.SetNDC();
+  text.SetTextFont(82);
+  text.SetTextSize(0.04);
+  text.SetTextColor(2);
 
   //================ Set Canvas
   TApplication * app = new TApplication ("app", &argn, argv);
   
+  TCanvas * canvas = new TCanvas("fCanvas", "Online Spectrum", 1800, 2000);
   
-  TCanvas * canvas = new TCanvas("fCanvas", "Online Spectrum", 1800, 1400);
   canvas->Divide(1, 9, 0);
   canvas->SetCrosshair(1);
   for( int i = 0; i < 9 ; i++){
@@ -183,6 +219,7 @@ int main(int argn, char **argv) {
     canvas->cd(i+1)->SetRightMargin(0.002);
   }
   
+  ///TCanvas * cTrace = new TCanvas("cTrace", "Trace", 100, 100, 1000, 500);
   
 
   //=============== Read File
@@ -210,11 +247,10 @@ int main(int argn, char **argv) {
     data.id = data.crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data.slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data.ch;
     data.detID = mapping[data.id];
     
-    ///======== read ADC
+    ///======== read QDCsum
     if( data.headerLength >= 4 ){
       unsigned int extraHeader[data.headerLength-4];
       fread(extraHeader, sizeof(extraHeader), 1, inFile);
-      //if( measureID < 10 ) for(int i = 0; i < data.headerLength - 4; i++) printf("  %x\n", extraHeader[i]);      
       if( data.headerLength > 12){
         data.trailing = extraHeader[0];
         data.leading  = extraHeader[1];
@@ -225,7 +261,7 @@ int main(int argn, char **argv) {
       for( int i = 0; i < 8; i++){
         int startID = 0;
         if( data.headerLength > 12) startID = 4; ///the 1st 4 words
-        data.ADC[i] = extraHeader[i+startID];
+        data.QDCsum[i] = extraHeader[i+startID];
       }
     }
     ///====== read trace
@@ -239,11 +275,11 @@ int main(int argn, char **argv) {
       }
     }
     
-    if( measureID < 10 ) {
-      printf("----------------------event Length: %u, fpos: %llu byte (%lld words)\n", data.eventLength, fpos, fpos/4);
-      for(int i = 0; i < 4; i++) printf("  %x\n", header[i]);
-      data.Print();
-    }
+    ///if( measureID < 10 ) {
+    ///  printf("----------------------event Length: %u, fpos: %llu byte (%lld words)\n", data.eventLength, fpos, fpos/4);
+    ///  for(int i = 0; i < 4; i++) printf("  %x\n", header[i]);
+    ///  data.Print();
+    ///}
     
     //=== jump to next measurement. obsolete, we read the whole block
     ///if( data.eventLength > 4 ) {
@@ -268,6 +304,20 @@ int main(int argn, char **argv) {
     }
     
     
+    //===== Trace
+    if( data.trace_length > 0 ) {
+      gTrace->Clear();
+      gTrace->Set(data.trace_length);
+      gTrace->SetTitle(Form("eventID : %llu, detID: %d", data.eventID, data.detID));
+      for( int i = 0; i < data.trace_length; i++){
+        gTrace->SetPoint(i, i, data.trace[i]);
+      }
+    }
+    
+    if( isSaveRoot ){
+      fFile->cd();
+      tree->Fill();
+    }
     
     //==== event stats, print status every 10000 events
     if ( measureID % 10000 == 0 ) {
@@ -288,34 +338,69 @@ int main(int argn, char **argv) {
     gClock.Stop("timer");
     int time = TMath::Floor(gClock.GetRealTime("timer")*1000); // in millisec
     gClock.Start("timer");
-    if( time  % 1000 == 0 ){
-      for( int i = 0; i < NCRYSTAL; i++){
-        canvas->cd(i/4 +1);
-        //canvas->cd(i/4 +1)->SetLogy();
-        if( i % 4 == 0  ) {
-          he[i]->Draw();
-        }else{
-          he[i]->Draw("same");
+    if( time  % 1000 == 0 || time < 10){
+      
+      //==== for clover
+      for( int i = 0; i < NCLOVER; i++){
+        double maxY = 0;
+        double y = 0;
+        for( int j = 0; j < 4; j++){
+          int mBin = he[4*i+j]->GetMaximumBin();
+          y = he[4*i+j]->GetBinContent(mBin);
+          if( maxY < y ) maxY = y;
+        }
+        for( int j = 0; j < 4; j++){
+          canvas->cd(i+1);
+          he[4*i+j]->GetYaxis()->SetRangeUser(0, maxY*1.2);
+          if ( j ==  0) {
+            he[4*i]->Draw();
+          }else{
+            he[4*i+j]->Draw("same");
+          }
         }
       }
       canvas->Modified();
       canvas->Update(); 
+      
+      //==== for trace
+      ///if( data.trace_length > 0 ){
+      ///  cTrace->cd();
+      ///  gTrace->Draw("AL");
+      ///  
+      ///  for( int i = 0; i < 8; i++){
+      ///    text.DrawLatex(0.2, 0.8-0.05*i,  Form("%d", data.QDCsum[i]));
+      ///  }
+      ///  cTrace->Modified();
+      ///  cTrace->Update();
+      ///}
+      
+      
       gSystem->ProcessEvents();
     }  
   }//---- end of file loop
   
   
-  for( int i = 0; i < NCRYSTAL; i++){
-    canvas->cd(i/4 +1);
-    //canvas->cd(i/4 +1)->SetLogy();
-    if( i % 4 == 0  ) {
-      he[i]->Draw();
-    }else{
-      he[i]->Draw("same");
+  for( int i = 0; i < NCLOVER; i++){
+    double maxY = 0;
+    double y = 0;
+    for( int j = 0; j < 4; j++){
+      int mBin = he[4*i+j]->GetMaximumBin();
+      y = he[4*i+j]->GetBinContent(mBin);
+      if( maxY < y ) maxY = y;
+    }
+    for( int j = 0; j < 4; j++){
+      canvas->cd(i+1);
+      he[4*i+j]->GetYaxis()->SetRangeUser(0, maxY*1.2);
+      if ( j ==  0) {
+        he[4*i]->Draw();
+      }else{
+        he[4*i+j]->Draw("same");
+      }
     }
   }
   canvas->Modified();
   canvas->Update(); 
+  
   gSystem->ProcessEvents();
   
   
@@ -328,8 +413,24 @@ int main(int argn, char **argv) {
 
   fclose(inFile);
   
-  printf("\n============= reasched end of file\n");
-  printf("\nCrtl+C to end program.\n");
+  printf("\n\n\n============= reached end of file\n");
+  
+  if( isSaveHist ) {
+    printf(" save gamma histograms : \033[1;3mhist.root\033[m\n");
+    TFile * fHist = new TFile("hist.root", "RECREATE");
+    for( int i = 0; i < NCRYSTAL; i++) he[i]->Write("", TObject::kOverwrite);
+    fHist->Close();
+  }
+  
+  if( isSaveRoot){
+    printf(" save into Root : \033[1;3mtemp.root\033[m\n");
+    fFile->cd();
+    tree->Write();
+    fFile->Close();
+  }
+  
+  printf("Crtl+C to end program.\n");
+  
   app->Run();
 
 
