@@ -18,7 +18,9 @@
 #include "mapping.h"
 #include "armory/AnalysisLibrary.h"
 
-// Header file for the classes stored in the TTree if any.
+// Header file for the classes stored in the TTree if any.'
+
+#define MAX_MULTI 200
 
 class Analyzer : public TSelector {
 public :
@@ -28,9 +30,10 @@ public :
 
    // Declaration of leaf types
    ULong64_t       evID;
-   Int_t           detID[200];
-   Double_t        e[200];
-   ULong64_t       e_t[200];
+   Int_t           detID[MAX_MULTI];
+   Double_t        e[MAX_MULTI];
+   ULong64_t       e_t[MAX_MULTI];
+   Int_t           qdc[MAX_MULTI][8];
    Int_t           multi;
    Int_t           multiCry;
 
@@ -39,6 +42,7 @@ public :
    TBranch        *b_detID;     //!
    TBranch        *b_energy;   //!
    TBranch        *b_time;   //!
+   TBranch        *b_qdc;   //!
    TBranch        *b_multi;   //!
    TBranch        *b_multiCry;   //!
 
@@ -99,9 +103,10 @@ void Analyzer::Init(TTree *tree)
    fChain->SetMakeClass(1);
 
    fChain->SetBranchAddress("evID",         &evID, &b_event_ID);
-   fChain->SetBranchAddress("id",           detID, &b_detID);
+   fChain->SetBranchAddress("detID",        detID, &b_detID);
    fChain->SetBranchAddress("e",                e, &b_energy);
    fChain->SetBranchAddress("e_t",            e_t, &b_time);
+   fChain->SetBranchAddress("qdc",            qdc, &b_qdc);
    fChain->SetBranchAddress("multi",       &multi, &b_multi);
    fChain->SetBranchAddress("multiCry", &multiCry, &b_multiCry);
 

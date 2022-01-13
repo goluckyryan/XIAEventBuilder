@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <thread>
 
 #include "TSystem.h"
 #include "TObject.h"
@@ -22,6 +23,8 @@
 #include "../mapping.h"
 #include "../armory/AnalysisLibrary.h"
 
+#include "../armory/DataBlock.h"
+
 #define MAX_CRATES 2
 #define MAX_BOARDS_PER_CRATE 13
 #define MAX_CHANNELS_PER_BOARD 16
@@ -32,98 +35,31 @@
 //  2) Change to GUI
 //  4) eventBuilding
 
-class measurment{
+DataBlock dataList[1000];
+int dataCollected = 0;
 
-public:
-  UShort_t               ch;
-  UShort_t             slot;
-  UShort_t            crate;
-  UShort_t     headerLength;  /// headerLength > 4, more data except tarce.
-  UShort_t      eventLength;  /// eventLength = headerLength + trace 
-  Bool_t             pileup;
-  ULong64_t            time;
-  UShort_t              cfd;
-  UShort_t           energy;
-  UShort_t     trace_length;
-  Bool_t trace_out_of_range;
+void BuildEvent(){
   
-  Int_t            trailing;
-  Int_t             leading;
-  Int_t                 gap;
-  Int_t            baseline;
-  Int_t           QDCsum[8];
+  ///==== sort timestamp
   
-  UShort_t id;
-  Int_t  detID;
-  ULong64_t eventID;
+  ///==== build events
   
-  UShort_t    trace[1024];
-  
-  measurment(){
-    Clear();
-  };
-  
-  ~measurment(){};
-  
-  void Clear(){
-    ch = 0;
-    slot = 0;
-    crate = 0;
-    headerLength = 0;
-    eventLength = 0;
-    pileup = false;
-    time = 0;
-    cfd = 0;
-    energy = 0;
-    trace_length = 0;
-    trace_out_of_range = 0;
-    id = 0;
-    detID = -1;
-    eventID = 0;
-    trailing = 0;
-    leading = 0;
-    gap = 0;
-    baseline = 0;
-    for( int i = 0; i < 8; i++) QDCsum[i] = -1;
-    for( int i = 0; i < 1024; i++) trace[i] = 0;
-  }
-  
-  void Print(){
-    printf("============== eventID : %llu\n", eventID);
-    printf("Crate: %d, Slot: %d, Ch: %d | id: %d = detID : %d \n", crate, slot, ch, id, detID);
-    printf("HeaderLength: %d, Event Length: %d, energy: %d, timeStamp: %llu\n", headerLength, eventLength, energy, time);
-    printf("trace_length: %d, pile-up:%d\n", trace_length, pileup); 
-    if( headerLength > 4 ){
-      if( headerLength > 12 ){
-        printf(" trailing : %d\n", trailing);
-        printf(" leading  : %d\n", leading);
-        printf(" gap      : %d\n", gap);
-        printf(" baseLine : %d\n", baseline);
-      }
-      printf(" QDCsum : \n");
-      for( int i = 0; i < 8; i++) printf("    %-10d\n", QDCsum[i]);
-    }
-    if( eventLength > headerLength ){
-      printf(" trace:\n");
-      for( int i = 0 ; i < trace_length ; i++)printf("%3d|     %-10d\n",i, trace[i]);
-    }
-  }
-  
-};
+  ///==== output to g-g hist
+}
 
 //#############################################
 //           main 
 //###############################################
 int main(int argn, char **argv) {
     
-  if (argn < 2 || argn > 6 )    {
+  if (argn < 2 || argn > 7 )    {
     printf("Usage :\n");
-    printf("%s [evt File]  [E corr] [raw E threshold] [Save Hist] [Save Root]\n", argv[0]);
+    printf("%s [evt File]  [E corr] [raw E threshold] [Hist File] [Root File] [display data]\n", argv[0]);
     printf("          [E corr] : correction file for gamma energy \n");       
-    printf(" [raw E threshold] : min raw E \n");       
-    printf("       [save Hist] : 1/0 \n");       
-    printf("       [save Root] : 1/0 \n");       
-    
+    printf(" [raw E threshold] : min raw E, default 10 ch \n");       
+    printf("       [Hist File] : if provided, saved histograms in root. if value = 1, auto fileName. \n");       
+    printf("       [Root File] : if provided, saved energy, timestamp, QDC, and trace in to root. if value = 1, auto fileName. \n");       
+    printf("    [display data] : number of event from the first one to display. default 0. \n");
     return 1;
   }
   
@@ -137,15 +73,31 @@ int main(int argn, char **argv) {
     eCorr = LoadCorrectionParameters(corrFile);
   }
 
-  int rawEnergyThreshold = 100;
+  int rawEnergyThreshold = 10;
   if( argn >= 4 ) rawEnergyThreshold = atoi(argv[3]);
 
-  bool isSaveHist = false; ///save gamma hist for calibration
-  if( argn >= 5 ) isSaveHist = atoi(argv[5]);
+  TString histFileName = ""; ///save gamma hist for calibration
+  if( argn >= 5 ) histFileName = argv[4];
+  if( histFileName == "1" ){
+    histFileName = inFileName;
+    histFileName.Remove(0, inFileName.Last('/')+1);
+    histFileName.Remove(histFileName.First('.'));
+    histFileName.Append("_hist.root");
+  }
+  if( histFileName == "0" ) histFileName = "";
 
-  bool isSaveRoot = false; ///save data into root
-  if( argn >= 6 ) isSaveRoot = atoi(argv[6]);
-
+  TString rootFileName = ""; ///save data into root
+  if( argn >= 6 ) rootFileName = argv[5];
+  if( rootFileName == "1" ){
+    rootFileName = inFileName;
+    rootFileName.Remove(0, inFileName.Last('/')+1);
+    rootFileName.Remove(rootFileName.First('.'));
+    rootFileName.Append("_raw.root");
+  }
+  if( rootFileName == "0" ) rootFileName = "";
+  
+  int maxDataDisplay = 0;
+  if( argn >= 7 ) maxDataDisplay = atoi(argv[6]);
 
   long int inFilePos;
   TBenchmark gClock;
@@ -154,7 +106,7 @@ int main(int argn, char **argv) {
   
   ULong64_t measureID = -1;
   
-  measurment data;
+  DataBlock data;
   
   printf("====================================\n");
 
@@ -166,20 +118,27 @@ int main(int argn, char **argv) {
 
   printf(" in file: \033[1;31m%s\033[m\n", inFileName.Data());
   printf(" Gamma energy correction file : %s\n", corrFile == "" ? "Not provided." : corrFile.Data());
+  printf(" raw E threshold : %d ch\n", rawEnergyThreshold);
+  if( histFileName != "" ) printf(" Save histograms to %s\n", histFileName.Data()); 
+  if( rootFileName != "" ) printf(" Save root to %s\n", rootFileName.Data()); 
   printf("--------------------------------\n");
   
   TFile * fFile = NULL;
   TTree * tree = NULL; 
-  if( isSaveRoot ){
-    fFile = new TFile("temp.root", "RECREATE");
+  if( rootFileName != "" ){
+    fFile = new TFile(rootFileName, "RECREATE");
     tree = new TTree("tree", "tree");
     
+    
+    tree->Branch("headerLenght", &data.headerLength, "HeaderLength/s");
     tree->Branch("detID",               &data.detID, "detID/s");
+    tree->Branch("id",                     &data.id, "id/s");
     tree->Branch("e",                  &data.energy, "energy/s");
     tree->Branch("e_t",                  &data.time, "timestamp/l");
+    tree->Branch("p",                  &data.pileup, "pileup/O");
     tree->Branch("qdc",                 data.QDCsum, "QDC_sum[8]/I");
     tree->Branch("trace_length", &data.trace_length, "trace_length/s");
-    tree->Branch("trace",               data.trace, "trace[trace_length]/s"); 
+    tree->Branch("trace",                data.trace, "trace[trace_length]/s"); 
   }
 
   //================ get file size
@@ -227,7 +186,7 @@ int main(int argn, char **argv) {
 
   while ( ! feof(inFile) ){
 
-    fread(header, sizeof(header), 1, inFile);
+    if ( fread(header, sizeof(header), 1, inFile) !=1 ) break;
     measureID ++;
     
     /// see the Pixie-16 user manual, Table4-2
@@ -251,17 +210,18 @@ int main(int argn, char **argv) {
     if( data.headerLength >= 4 ){
       unsigned int extraHeader[data.headerLength-4];
       fread(extraHeader, sizeof(extraHeader), 1, inFile);
-      if( data.headerLength > 12){
+      if( data.headerLength == 8 || data.headerLength == 16){
         data.trailing = extraHeader[0];
         data.leading  = extraHeader[1];
         data.gap      = extraHeader[2];
         data.baseline = extraHeader[3];
       }
-      
-      for( int i = 0; i < 8; i++){
-        int startID = 0;
-        if( data.headerLength > 12) startID = 4; ///the 1st 4 words
-        data.QDCsum[i] = extraHeader[i+startID];
+      if( data.headerLength == 12 || data.headerLength == 16){
+          for( int i = 0; i < 8; i++){
+            int startID = 0;
+            if( data.headerLength > 12) startID = 4; ///the 1st 4 words
+            data.QDCsum[i] = extraHeader[i+startID];
+          }
       }
     }
     ///====== read trace
@@ -275,11 +235,11 @@ int main(int argn, char **argv) {
       }
     }
     
-    ///if( measureID < 10 ) {
-    ///  printf("----------------------event Length: %u, fpos: %llu byte (%lld words)\n", data.eventLength, fpos, fpos/4);
-    ///  for(int i = 0; i < 4; i++) printf("  %x\n", header[i]);
-    ///  data.Print();
-    ///}
+    if( measureID < maxDataDisplay ) {
+      printf("----------------------event Length: %u, fpos: %llu byte (%lld words)\n", data.eventLength, fpos, fpos/4);
+      for(int i = 0; i < 4; i++) printf("  %x\n", header[i]);
+      data.Print();
+    }
     
     //=== jump to next measurement. obsolete, we read the whole block
     ///if( data.eventLength > 4 ) {
@@ -309,12 +269,29 @@ int main(int argn, char **argv) {
       gTrace->Clear();
       gTrace->Set(data.trace_length);
       gTrace->SetTitle(Form("eventID : %llu, detID: %d", data.eventID, data.detID));
+      
+      if( data.headerLength == 4 ) {
+        for( int i = 0; i < 8; i++ ) data.QDCsum[i] = 0;
+      }
+      
       for( int i = 0; i < data.trace_length; i++){
         gTrace->SetPoint(i, i, data.trace[i]);
+
+        ///if the header don't have ADC, make one
+        if( data.headerLength < 12 ) {
+          if(   0 <= i && i <  31 ) data.QDCsum[0] += data.trace[i];
+          if(  31 <= i && i <  60 ) data.QDCsum[1] += data.trace[i];
+          if(  60 <= i && i <  75 ) data.QDCsum[2] += data.trace[i];
+          if(  75 <= i && i <  95 ) data.QDCsum[3] += data.trace[i];
+          if(  95 <= i && i < 105 ) data.QDCsum[4] += data.trace[i];
+          if( 105 <= i && i < 160 ) data.QDCsum[5] += data.trace[i];
+          if( 160 <= i && i < 175 ) data.QDCsum[6] += data.trace[i];
+          if( 175 <= i && i < 200 ) data.QDCsum[7] += data.trace[i];
+        }
       }
     }
     
-    if( isSaveRoot ){
+    if( rootFileName != "" ){
       fFile->cd();
       tree->Fill();
     }
@@ -415,15 +392,15 @@ int main(int argn, char **argv) {
   
   printf("\n\n\n============= reached end of file\n");
   
-  if( isSaveHist ) {
-    printf(" save gamma histograms : \033[1;3mhist.root\033[m\n");
-    TFile * fHist = new TFile("hist.root", "RECREATE");
+  if( histFileName != "" ) {
+    printf(" save gamma histograms : \033[1;3m%s\033[m\n", histFileName.Data());
+    TFile * fHist = new TFile(histFileName, "RECREATE");
     for( int i = 0; i < NCRYSTAL; i++) he[i]->Write("", TObject::kOverwrite);
     fHist->Close();
   }
   
-  if( isSaveRoot){
-    printf(" save into Root : \033[1;3mtemp.root\033[m\n");
+  if( rootFileName != "" ){
+    printf(" save into Root : \033[1;3m%s\033[m\n", rootFileName.Data());
     fFile->cd();
     tree->Write();
     fFile->Close();

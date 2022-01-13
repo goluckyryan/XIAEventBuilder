@@ -121,6 +121,7 @@ int main(int argc, char **argv) {
   int                   id[MAX_ID] = {0};
   double                 e[MAX_ID] = {TMath::QuietNaN()};  
   unsigned long long   e_t[MAX_ID] = {0};
+  int               qdc[MAX_ID][8] = {0};
   Int_t                   multiCry = 0 ; /// this is total multiplicity for all crystal
 
   //unsigned short  pileup[MAXMULTI];
@@ -128,9 +129,10 @@ int main(int argc, char **argv) {
 
   tree->Branch("evID", &evID, "event_ID/l"); 
   tree->Branch("multi", &multi, "multi/I"); 
-  tree->Branch("id",    id, "id[multi]/I");
+  tree->Branch("detID",   id, "detID[multi]/I");
   tree->Branch("e",      e, "e[multi]/D");
   tree->Branch("e_t",  e_t, "e_timestamp[multi]/l");
+  tree->Branch("qdc",  qdc, "qdc[multi][8]/I");
   tree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
   
   //open list-mode data file from PXI digitizer  
@@ -191,6 +193,49 @@ int main(int argc, char **argv) {
         tempf = (float)data.e/RAWE_REBIN_FACTOR;// + RAND;
         data.e = (int)tempf;  
         
+        if( data.hlen > 4 ){
+            unsigned int extraHeader[data.hlen - 4 ];
+            fread(extraHeader, sizeof(extraHeader), 1, fpr);
+            if( data.hlen == 8 || data.hlen == 16){
+                for( int i = 0 ; i < 4; i ++) data.esum[i] = extraHeader[i];
+            }
+            
+            if( data.hlen == 12 || data.hlen == 16){
+                for( int i = 0; i < 8; i++){
+                    int startID = 0;
+                    if( data.hlen > 12) startID = 4; ///the 1st 4 words
+                    data.qsum[i] = extraHeader[i+startID];
+                }
+            }
+        }
+        
+        if( data.hlen < data.elen ){
+            unsigned int traceBlock[data.trlen / 2];
+            fread(traceBlock, sizeof(traceBlock), 1, fpr);
+          
+            for( int i = 0; i < data.trlen/2 ; i++){
+                data.tr[2*i+0] = traceBlock[i] & 0xFFFF ;
+                data.tr[2*i+1] = (traceBlock[i] >> 16 ) & 0xFFFF ;
+            }
+            
+
+           if( data.hlen < 12 ){
+                for( int i = 0 ; i < 8; i++) data.qsum[i] = 0;
+                for( int i = 0; i < data.trlen ; i++){
+                    if(   0 <= i && i <  31 ) data.qsum[0] += data.tr[i];
+                    if(  31 <= i && i <  60 ) data.qsum[1] += data.tr[i];
+                    if(  60 <= i && i <  75 ) data.qsum[2] += data.tr[i];
+                    if(  75 <= i && i <  95 ) data.qsum[3] += data.tr[i];
+                    if(  95 <= i && i < 105 ) data.qsum[4] += data.tr[i];
+                    if( 105 <= i && i < 160 ) data.qsum[5] += data.tr[i];
+                    if( 160 <= i && i < 175 ) data.qsum[6] += data.tr[i];
+                    if( 175 <= i && i < 200 ) data.qsum[7] += data.tr[i];
+                }
+            }
+        }
+        
+       
+        
         //Set reference time for event building
         if (etime == -1) {
             etime = data.time;
@@ -202,7 +247,7 @@ int main(int argc, char **argv) {
       
         //Check for end of event, rewind, and break out of while loop
         if (tdif > timeWindow) {
-            fseek(fpr, -sizeof(int)*HEADER_LENGTH, SEEK_CUR); //fwrite/fread is buffered by system ; storing this in local buffer is no faster!
+            fseek(fpr, -sizeof(int)*data.elen, SEEK_CUR); //fwrite/fread is buffered by system ; storing this in local buffer is no faster!
             break;           
         }else{
           //if within time window, fill array;
@@ -210,6 +255,7 @@ int main(int argc, char **argv) {
           id[multi]  = detID;
           e[multi]   = data.e;
           e_t[multi] = data.time;
+          for( int i = 0; i < 8; i++) qdc[multi][i] = data.qsum[i];
           multi++ ;
           if( detID < 100 ) multiCry ++;
         }    
@@ -220,49 +266,9 @@ int main(int argc, char **argv) {
         }
         
         //more data than just the header; read entire sub event, first rewind, then read data.elen
-        fseek(fpr, -sizeof(int)*HEADER_LENGTH, SEEK_CUR);
+        //fseek(fpr, -sizeof(int)*HEADER_LENGTH, SEEK_CUR);
         //if (fread(sub, sizeof(int)*dataBlock[sevtmult].elen, 1, fpr) != 1) break;
-        if (fread(sub, sizeof(int)*data.elen, 1, fpr) != 1) break;
-
-                              
-        /**                      
-        //trace
-        k=0;
-        for (i = dataBlock[sevtmult].hlen; i < dataBlock[sevtmult].elen; i++) {      
-            dataBlock[sevtmult].tr[i - dataBlock[sevtmult].hlen + k] = sub[i] & 0x3FFF;
-            dataBlock[sevtmult].tr[i - dataBlock[sevtmult].hlen + k + 1] = (sub[i]>>16) & 0x3FFF;
-            k=k+1;
-        } 
-        
-     // if (dataBlock[sevtmult].id == 4 && dataBlock[sevtmult].fcode == 1) DB(dataBlock[sevtmult].tr);
-            
-        //continue if no esum or qsum   
-        if (dataBlock[sevtmult].hlen==HEADER_LENGTH) {
-            sevtmult++;        
-            continue;
-        }
-        
-        //esum
-        if (dataBlock[sevtmult].hlen==8 || dataBlock[sevtmult].hlen==16) { 
-            for (i=4; i < 8; i++) {
-                dataBlock[sevtmult].esum[i-4] = sub[i];
-            }
-        }
-    
-        //qsum
-        if (dataBlock[sevtmult].hlen==12) { 
-            for (i=4; i < 12; i++) {
-                dataBlock[sevtmult].qsum[i-4] = sub[i];
-            }
-        }
-    
-        //qsum
-        if (dataBlock[sevtmult].hlen==16) { 
-            for (i=8; i < 16; i++) {
-                dataBlock[sevtmult].qsum[i-8] = sub[i];
-            }
-        }    
-        */
+        //if (fread(sub, sizeof(int)*data.elen, 1, fpr) != 1) break;
      
       } //end while loop for unpacking sub events and event building for one "event"
       if (multi==0) break; //end main WHILE LOOP when out of events 

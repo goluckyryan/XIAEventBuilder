@@ -36,6 +36,10 @@ TH2F * hcrystalBGO;
 
 TH1F * hTDiff;
 
+TH2F * hPID;
+TH2F * hPID209;
+TH2F * hPID219;
+
 ///----- after calibration and BGO veto
 TH2F * heCalVID;
 TH1F * heCal[NCRYSTAL]; 
@@ -69,6 +73,11 @@ void Analyzer::Begin(TTree * tree){
       he[i]    = new TH1F(   Form("he%02d", i),                                  Form("e -%02d", i), rawEnergyRange[1] - rawEnergyRange[0], rawEnergyRange[0], rawEnergyRange[1]);
       heCal[i] = new TH1F(Form("heCal%02d", i), Form("eCal -%02d (BGO veto > %.1f); Energy [keV];  count / %d keV", i, BGO_threshold, energyRange[0]), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
    }
+   
+   hPID = new TH2F("hPID", "PID; tail; peak ", 400, -20, 300, 400, -50, 800);
+   hPID209 = new TH2F("hPID209", "PID detID = 209; tail; peak ", 400, -20, 300, 400, -50, 800);
+   hPID219 = new TH2F("hPID219", "PID detID = 219; tail; peak ", 400, -20, 300, 400, -50, 800);
+
    
    for( int i = 0; i < NCRYSTAL; i++){
       for( int j = i+1; j < NCRYSTAL; j++){
@@ -112,13 +121,18 @@ Bool_t Analyzer::Process(Long64_t entry){
    b_multi->GetEntry(entry);
    b_multiCry->GetEntry(entry);
    b_detID->GetEntry(entry);
+   b_qdc->GetEntry(entry);
    
    if( multi == 0 ) return kTRUE;
    
    for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
 
    ///printf("---------------------------- %d \n", multi);
-   ///=========== Looping data for the event
+   
+   double bgC[2]={0}, peakC[2]={0}, tailC[2] = {0};
+   int count = 0 ;
+   
+   ///=========== Looping data for the event   
    for( int i = 0; i < multi ; i ++){
       
       int id = detID[i];
@@ -140,6 +154,30 @@ Bool_t Analyzer::Process(Long64_t entry){
       
       if ( 100 < id && id < 200 ){ /// BGO data
          
+      }
+      
+      if( 200 < id && id  < 300){ /// GAGG
+         
+      }
+      
+      if( id == 209 ) {
+            double bg = (qdc[i][0] + qdc[i][1])/60.;
+            double peak = qdc[i][3]/20. - bg;
+            double tail = qdc[i][5]/55. - bg;
+            hPID209->Fill( tail, peak);
+      }
+      if( id == 219 ) {
+            double bg = (qdc[i][0] + qdc[i][1])/60.;
+            double peak = qdc[i][3]/20. - bg;
+            double tail = qdc[i][5]/55. - bg;
+            hPID219->Fill( tail, peak);
+      }
+      
+      if( count < 2 && (id == 209 || id == 219 )){
+        bgC[count] = (qdc[i][0] + qdc[i][1])/60.;
+        peakC[count] = qdc[i][3]/20. - bgC[count];
+        tailC[count] = qdc[i][5]/55. - bgC[count];
+        count++;
       }
       
       if ( i > 0 ) hTDiff->Fill( e_t[i] - e_t[0]);
@@ -182,6 +220,9 @@ Bool_t Analyzer::Process(Long64_t entry){
    }
    
    
+   hPID->Fill( (tailC[0]+tailC[1])/2., ( peakC[0] + peakC[1])/2.);
+   
+   
    if ( saveEV2) Save2ev2();
    
    
@@ -205,19 +246,20 @@ void Analyzer::Terminate(){
 
    cCanvas->cd(1);
    cCanvas->cd(1)->SetLogz(1);
-   heVID->Draw("colz");
+   hPID209->Draw("colz");
 
    cCanvas->cd(2);
    cCanvas->cd(2)->SetLogz(1);
-   heCalVID->Draw("colz");
+   hPID219->Draw("colz");
    
    cCanvas->cd(3);
    cCanvas->cd(3)->SetLogz(1);
-   hcrystalBGO->Draw("colz");
+   hPID->Draw("colz");
    
    cCanvas->cd(4);
    cCanvas->cd(4)->SetLogz(1);
-   hcrystalBGO_G->Draw("colz");
+   //gROOT->ProcessLine(".x script.C");   
+   //hcrystalBGO_G->Draw("colz");
    //he[0]->SetLineColor(2);
    //he[0]->Draw();
    //heCal[0]->Draw("same");

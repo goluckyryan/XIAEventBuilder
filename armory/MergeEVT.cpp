@@ -16,49 +16,8 @@
 #define BOARD_START 2
 
 #include "../mapping.h"
+#include "../armory/DataBlock.h"
 
-class measurment{
-
-public:
-  UShort_t               ch;
-  UShort_t             slot;
-  UShort_t            crate;
-  UShort_t     headerLength;  /// headerLength > 4, more data except tarce.
-  UShort_t      eventLength;  /// eventLength = headerLength + trace 
-  Bool_t             pileup;
-  ULong64_t            time;
-  UShort_t              cfd;
-  UShort_t           energy;
-  UShort_t     trace_length;
-  Bool_t trace_out_of_range;
-  
-  Long64_t   timeDiff;  
-  
-  UShort_t id;
-  
-  measurment(){};
-  
-  void Clear(){
-    ch = 0;
-    slot = 0;
-    crate = 0;
-    eventLength = 0;
-    pileup = false;
-    time = 0;
-    cfd = 0;
-    energy = 0;
-    trace_length = 0;
-    trace_out_of_range = 0;
-    timeDiff = 0;
-    id = 0;
-  }
-  
-  void Print(){
-    printf("Crate: %d, Slot: %d, Ch: %d | id: %d \n", crate, slot, ch, id);
-    printf("HeaderLength: %d, Event Length: %d, energy: %d, timeStamp: %llu\n", headerLength, eventLength, energy, time);
-    printf("trace_length: %d, pile-up:%d\n", trace_length, pileup); 
-  }
-};
 //#############################################
 //           main 
 //#############################################
@@ -88,7 +47,7 @@ int main(int argn, char **argv) {
   printf("     out file: %s\n", outFileName.Data());
 
   Long64_t measureID = -1;  
-  measurment data;
+  DataBlock data;
   
   printf("====================================\n");
 
