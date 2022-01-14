@@ -17,6 +17,7 @@
 
 #include "../mapping.h"
 #include "../armory/DataBlock.h"
+#include "../armory/evtReader.h"
 
 //#############################################
 //           main 
@@ -46,8 +47,9 @@ int main(int argn, char **argv) {
   
   printf("     out file: %s\n", outFileName.Data());
 
-  Long64_t measureID = -1;  
-  DataBlock data;
+
+  evtReader * evt = new evtReader();
+  DataBlock * data = evt->data;
   
   printf("====================================\n");
 
@@ -55,29 +57,25 @@ int main(int argn, char **argv) {
   TFile * outFile = new TFile(outFileName, "recreate");
   TTree * tree = new TTree("tree", "tree");
 
-  tree->Branch("evID",    &measureID, "data_ID/L"); 
-  tree->Branch("id",        &data.id, "ID/s");
-  tree->Branch("e",     &data.energy, "crystal_energy/s");
-  tree->Branch("e_t",       &data.time, "crystal_timestamp/l");
+  tree->Branch("evID",    &data->eventID, "data_ID/L"); 
+  tree->Branch("id",           &data->id, "ID/s");
+  tree->Branch("e",        &data->energy, "crystal_energy/s");
+  tree->Branch("e_t",        &data->time, "crystal_timestamp/l");
 
-
-  long int inFileSize = 0;
-  long int inFilePos = 0;
   
   TBenchmark gClock;
   gClock.Reset();
   gClock.Start("timer");
+
 
   //=========================================
   //=========================================
   //=========================================
   //=========================================
   for( int i = 0; i < nFiles; i++){
-    FILE * inFile = fopen(inFileName[i], "r");
-    if( inFile == NULL ){
-      printf("Cannot read file : %s \n", inFileName[i].Data());
-      continue;
-    }
+    
+    evt->OpenFile(inFileName[i]);
+    if( evt->IsOpen() == false ) continue;
     
     Long64_t measureCount = 0;
     printf("\033[1;31mProcessing file: %s\033[0m\n", inFileName[i].Data());
@@ -85,74 +83,22 @@ int main(int argn, char **argv) {
     clock2.Reset();
     clock2.Start("timer");
 
-    //get file size
-    fseek(inFile, 0L, SEEK_END);
-    inFileSize = ftell(inFile);
-    rewind(inFile); ///back to the File begining
-    inFilePos = 0;
-    
-    unsigned int header[4]; //read 4 header, unsigned int = 4 byte = 32 bits.  
-    unsigned long long nWords = 0;
-    
-    //ULong64_t timeLast = 0;
-
     //=============== Read File
-    ///  while ( ! feof(inFile) ){
-    while( inFilePos < inFileSize || feof(inFile) ){
-
-      fread(header, sizeof(header), 1, inFile);
-      inFilePos = ftell(inFile);
-      measureID ++; 
-      measureCount++;
+    while( evt->IsEndOfFile() == false ){
       
-      /// see the Pixie-16 user manual, Table4-2
-      data.ch           =  header[0] & 0xF ;
-      data.slot         = (header[0] >> 4) & 0xF;
-      data.crate        = (header[0] >> 8) & 0xF;
-      data.headerLength = (header[0] >> 12) & 0x1F;
-      data.eventLength  = (header[0] >> 17) & 0x3FFF;
-      data.pileup       =  header[0] >> 31 ;
-      data.time         = ((ULong64_t)(header[2] & 0xFFFF) << 32) + header[1];
-      data.cfd          =  header[2] >> 16 ; 
-      data.energy       =  header[3] & 0xFFFF;
-      data.trace_length = (header[3] >> 16) & 0x7FFF;
-      data.trace_out_of_range =  header[3] >> 31;
-      
-      data.id = data.crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data.slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data.ch;
-
-      data.id = mapping[data.id];
-      data.energy = data.energy / 2. ; // factor 2 is the rawe_rebin_factor;
-
-      nWords += data.eventLength;
-      
-      //=== jump to next measurement
-      if( data.eventLength > 4 ){
-        fseek(inFile, sizeof(int) * (data.eventLength-4),  SEEK_CUR);
-        inFilePos = ftell(inFile);
-      }
-    
-      //event stats, print status every 10000 events
-      if ( measureID % 10000 == 0 ) {
-        float tempf = (float)inFileSize/(1024.*1024.*1024.);
-        gClock.Stop("timer");
-        double time = gClock.GetRealTime("timer");
-        gClock.Start("timer");
-        printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
-                     measureID +1 , (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
-      }   
+      evt->ReadBlock();
+      evt->PrintStatus(10000);
       
       //cern fill tree
       outFile->cd();
       tree->Fill();
 
     }
-    inFilePos = ftell(inFile);
-    fclose(inFile);
     
     clock2.Stop("timer");
     double time = clock2.GetRealTime("timer");
-    float tempf = (float)inFileSize/(1024.*1024.*1024.);
-    printf("           measurements: \x1B[32m%lld \x1B[0m |  %.3f GB\n", measureCount, tempf);
+    float tempf = (float)evt->GetFilePos()/(1024.*1024.*1024.);
+    printf("           measurements: \x1B[32m%lld \x1B[0m |  %.3f GB\n", evt->GetBlockID(), tempf);
     printf("           Time used:%3.0f min %5.2f sec\n",  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
     printf("           Root file size so far: %.4f GB\n",  outFile->GetSize()/1024./1024./1024.);
     
@@ -161,9 +107,9 @@ int main(int argn, char **argv) {
   gClock.Stop("timer");
   double time = gClock.GetRealTime("timer");
   gClock.Start("timer");
-  float tempf = (float)inFileSize/(1024.*1024.*1024.);
+  float tempf = (float)evt->GetFilePos()/(1024.*1024.*1024.);
   printf("Total measurements: \x1B[32m%lld \x1B[0m\nPercent Complete: \x1B[32m%ld%% of %.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\r", 
-                   measureID+1, (100*inFilePos/inFileSize), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+                   evt->GetBlockID()+1, (100*evt->GetFilePos()/evt->GetFileSize()), tempf,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
 
 
   //cern save root

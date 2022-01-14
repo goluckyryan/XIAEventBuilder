@@ -27,58 +27,61 @@ class evtReader{
 public:
   DataBlock * data;
 
-  Long64_t blockID;
-  
-  bool isOpen;
-  
 private:
   FILE * inFile;
   
   long int inFileSize;
   long int inFilePos;
   bool endOfFile;  
+  bool isOpened;
+  Long64_t blockID;
   
   TBenchmark gClock;
 
+
 ///============================================ Methods
 public:
-  evtReader(TString inFileName){
-      
-    inFile = fopen(inFileName, "r");
-    if( inFile == NULL ){
-      printf("Cannot read file : %s \n", inFileName.Data());
-
-      inFileSize = 0;
-      inFilePos = 0;
-
-      blockID = -1;
-      endOfFile = false;
-      isOpen = false;      
-
-    }else{
+  evtReader(){
+    inFile = 0;
+    data = new DataBlock();
     
-      fseek(inFile, 0L, SEEK_END);
-      inFileSize = ftell(inFile);
-      inFilePos = 0;
-      rewind(inFile); ///back to the File begining
+    inFileSize = 0;
+    inFilePos = 0;
 
-      data = new DataBlock();
-      data->Clear();
-      blockID = -1;
-      
-      endOfFile = false;
-      isOpen = true;
-      
-      gClock.Reset();
-      gClock.Start("timer");
-    }
+    blockID = -1;
+    endOfFile = false;
+    isOpened = false;      
   }
-    
+  evtReader(TString inFileName){ 
+    OpenFile(inFileName);
+  }
   
   ~evtReader(){
     fclose(inFile);
     delete inFile;
     delete data;
+  }
+  
+  void OpenFile(TString inFileName){
+    inFile = fopen(inFileName, "r");
+    if( inFile == NULL ){
+      printf("Cannot read file : %s \n", inFileName.Data());
+    }else{
+      fseek(inFile, 0L, SEEK_END);
+      inFileSize = ftell(inFile);
+      inFilePos = 0;
+      rewind(inFile); ///back to the File begining
+
+      data->Clear();
+      blockID = -1;
+      
+      endOfFile = false;
+      isOpened = true;
+      
+      gClock.Reset();
+      gClock.Start("timer");
+    }
+    
   }
   
   void UpdateFileSize(){
@@ -88,13 +91,17 @@ public:
     fseek(inFile, inFilePos, SEEK_SET);
   }
   
-  bool isEndOfFile() {
+  bool IsOpen(){ return isOpened;}
+  
+  bool IsEndOfFile() {
     int haha = feof(inFile);
     return haha > 0 ? true: false;
   }
   
   long int GetFilePos(){return inFilePos;}
   long int GetFileSize(){return inFileSize;}
+
+  Long64_t GetBlockID(){ return blockID;}
 
   int ReadBlock(){
 
@@ -155,7 +162,8 @@ public:
       }
       
       ///make QDC by trace
-      if( data->headerLength == 8 ) {
+      if( data->headerLength == 4 || data->headerLength == 8 ) {
+        for( int i = 0; i < 8; i++){ data->QDCsum[i] = 0;}
         for( int i = 0; i < data->trace_length; i++){
           if(   0 <= i && i <  31 ) data->QDCsum[0] += data->trace[i];
           if(  31 <= i && i <  60 ) data->QDCsum[1] += data->trace[i];
@@ -180,7 +188,6 @@ public:
     ///==== event stats, print status every 10000 events
     if ( blockID % id == 0 ) {
       UpdateFileSize();
-      //inFilePos = ftell(inFile);
       gClock.Stop("timer");
       double time = gClock.GetRealTime("timer");
       gClock.Start("timer");
