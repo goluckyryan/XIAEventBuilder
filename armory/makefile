@@ -10,7 +10,7 @@ xia2root: ../armory/xia2root.cpp
 #	$(CC) armory/xia2ev2_nopart.cpp -o xia2ev2_nopart
 
 #this is for eventbuild 
-to2root: ../armory/to2root.cpp
+to2root: ../armory/to2root.cpp ../armory/DataBlock.h ../armory/evtReader.h ../mapping.h
 	$(CC) ../armory/to2root.cpp -o to2root `root-config --cflags --glibs`
 
 #this is for online root

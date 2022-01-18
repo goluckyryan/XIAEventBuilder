@@ -62,13 +62,22 @@ public:
     id = 0;
     detID = -1;
     eventID = 0;
+    ClearQDC();
+    ClearTrace();
+  }
+  
+  void ClearQDC(){
     trailing = 0;
     leading = 0;
     gap = 0;
     baseline = 0;
     for( int i = 0; i < 8; i++) QDCsum[i] = -1;
-    for( int i = 0; i < 1024; i++) trace[i] = 0;
   }
+  
+  void ClearTrace(){
+    for( int i = 0; i < 1024; i++) trace[i] = 0;    
+  }
+  
   
   void Print(){
     printf("============== eventID : %llu\n", eventID);

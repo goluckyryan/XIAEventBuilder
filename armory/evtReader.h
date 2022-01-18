@@ -115,7 +115,7 @@ public:
         return -1;
     }
     blockID ++;
-
+    
     /// see the Pixie-16 user manual, Table4-2
     data->eventID      = blockID;
     data->ch           =  header[0] & 0xF ;
@@ -132,6 +132,8 @@ public:
 
     data->id = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
     data->detID = mapping[data->id];
+
+    data->ClearQDC();
 
     ///======== read QDCsum
     if( data->headerLength >= 4 ){
@@ -150,6 +152,12 @@ public:
           data->QDCsum[i] = extraHeader[i+startID];
         }
       }
+    }else{
+      for( int i = 0 ; i < 8; i++){ data->QDCsum[i] = 0;}
+      data->trailing = 0;
+      data->leading  = 0;
+      data->gap      = 0;
+      data->baseline = 0;
     }
     ///====== read trace
     if( data->eventLength > data->headerLength ){      
