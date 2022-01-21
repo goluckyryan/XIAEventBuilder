@@ -42,7 +42,7 @@ int main(int argn, char **argv) {
   TString inFileName[nFiles];
   for( int i = 0; i < nFiles ; i++){
     inFileName[i] = argv[i+2];
-  printf(" in file - %2d: %s\n", i,  inFileName[i].Data());
+    printf(" in file - %2d: %s\n", i,  inFileName[i].Data());
   }
   
   printf("     out file: %s\n", outFileName.Data());

@@ -102,13 +102,16 @@ int main(int argc, char **argv) {
 
   //unsigned short  pileup[MAXMULTI];
 
-  tree->Branch("evID", &evID, "event_ID/l"); 
-  tree->Branch("multi", &multi, "multi/I"); 
-  tree->Branch("detID",   id, "detID[multi]/I");
-  tree->Branch("e",      e, "e[multi]/D");
-  tree->Branch("e_t",  e_t, "e_timestamp[multi]/l");
-  tree->Branch("qdc",  qdc, "qdc[multi][8]/I");
+  tree->Branch("evID",         &evID, "event_ID/l"); 
+  tree->Branch("multi",       &multi, "multi/I"); 
+  tree->Branch("detID",           id, "detID[multi]/I");
+  tree->Branch("e",                e, "e[multi]/D");
+  tree->Branch("e_t",            e_t, "e_timestamp[multi]/l");
+  tree->Branch("qdc",            qdc, "qdc[multi][8]/I");
   tree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
+  
+  
+  int countGP = 0; //gamma-particle coincident
 
   /////////////////////
   // MAIN WHILE LOOP //
@@ -166,11 +169,16 @@ int main(int argc, char **argv) {
      
       } //end while loop for unpacking sub events and event building for one "event"
       if (multi==0) break; //end main WHILE LOOP when out of events 
-      dataCount += multi;
+      dataCount = evt->GetBlockID(); 
       evID ++;
      
       evt->PrintStatus(10000);
-
+   
+      // when no gagg, don't save
+      if( multiCry == 0 ||  multi == multiCry )  continue;
+      
+      countGP ++;
+   
       outRootFile->cd();
       tree->Fill();
           
@@ -185,6 +193,8 @@ int main(int argc, char **argv) {
   outRootFile->Close();
 
   printf("\n\n\n==================== finished.\r\n");
+  
+  printf(" number of Gamma - GAGG coincdient : %d\n", countGP);
 
   return 0;
 }

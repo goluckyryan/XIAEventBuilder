@@ -126,7 +126,7 @@ public:
     data->pileup       =  header[0] >> 31 ;
     data->time         = ((ULong64_t)(header[2] & 0xFFFF) << 32) + header[1];
     data->cfd          =  header[2] >> 16 ; 
-    data->energy       = (header[3] & 0xFFFF ) /2; // I don;t know why it has to "rebin"
+    data->energy       = (header[3] & 0xFFFF ); 
     data->trace_length = (header[3] >> 16) & 0x7FFF;
     data->trace_out_of_range =  header[3] >> 31;
 
