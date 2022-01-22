@@ -1,6 +1,6 @@
 CC=g++
 
-all: to2root evt2hist MergeEVT ev22txt EventBuilder pxi-time-order to2root_multi
+all: to2root evt2hist MergeEVT ev22txt EventBuilder pxi-time-order
 
 #this is FSU evt to root
 xia2root: ../armory/xia2root.cpp
@@ -12,10 +12,6 @@ xia2root: ../armory/xia2root.cpp
 #this is for eventbuild 
 to2root: ../armory/to2root.cpp ../armory/DataBlock.h ../armory/evtReader.h ../mapping.h
 	$(CC) ../armory/to2root.cpp -o to2root `root-config --cflags --glibs`
-
-to2root_multi: ../armory/to2root_multi.cpp ../armory/DataBlock.h ../armory/evtReader.h ../mapping.h
-	$(CC) ../armory/to2root_multi.cpp -o to2root_multi `root-config --cflags --glibs`
-
 
 #this is for online root
 MergeEVT: ../armory/MergeEVT.cpp ../armory/DataBlock.h ../armory/evtReader.h ../mapping.h

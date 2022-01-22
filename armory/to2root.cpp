@@ -49,45 +49,32 @@ int main(int argc, char **argv) {
   printf("=====================================\n");  
 
   // Check that the corrent number of arguments were provided.
-  if (argc != 2 && argc != 3  && argc != 4 && argc != 5)    {
+  if (argc <= 3)    {
     printf("Incorrect number of arguments:\n");
-    printf("%s [*.to File]  <timeWindow>  <fraction>  <saveFile>\n", argv[0]);
+    printf("%s [outFile] [timeWindow] [to File1]  [to File2] .... \n", argv[0]);
+    printf("            outFile : output root file name\n");
     printf("         timeWindow : number of tick, 1 tick = 10 ns. default = 100 \n");   
-    printf("           fraction : 0 to 100, default 100, last fraction of evt.to to root  \n");   
-    printf("                                             e.g. 10, last 10%% of the evt.to to root \n");   
-    printf("           saveFile : default is replace evt.to with root  \n");   
     return 1;
   }
   
-  //CERN ROOT things
-  TString inFileName = argv[1];
-  int timeWindow = 100; 
-  if( argc >= 3 ) timeWindow = atoi(argv[2]);
+  TString outFileName = argv[1];
+  int timeWindow = atoi(argv[2]);
+  int nFile = argc - 3;
+  TString inFileName[nFile];
+  for( int i = 0 ; i < nFile ; i++){
+    inFileName[i] = argv[i+3];
+  }
   
-  int frac = 100;
-  if( argc >= 4 ) frac = abs(atoi(argv[3]));
-
-  TString outFileName = inFileName;  
-  outFileName.Remove(inFileName.First('.'));
-  outFileName.Append(".root");
-  int pos = inFileName.Last('/');
-  outFileName.Remove(0, pos+1);
-  if( argc >= 5) outFileName = argv[4];
+  printf("====================================\n");
   
   evtReader * evt = new evtReader();
-  evt->OpenFile(inFileName);
   DataBlock * data = evt->data;
   
-  printf("  in file : %s \n", inFileName.Data());
-  printf(" our file : \033[1;31m%s\033[m\n", outFileName.Data());
+  printf(" Number of input file : %d \n", nFile);
+  printf(" out file : \033[1;31m%s\033[m\n", outFileName.Data());
+  printf(" Event building time window : %d tics = %d nsec \n", timeWindow, timeWindow*10);
 
-  printf(" max number of detector channal: %d \n", MAX_ID);
-  
-  printf(" Skipping the frist \033[0;34m %d %% \033[m of data \n", 100 - frac);
-  
-  printf("------------------------ Event building time window : %d tics = %d nsec \n", timeWindow, timeWindow*10);
 
-  
   TFile * outRootFile = new TFile(outFileName, "recreate");
   outRootFile->cd();
   TTree * tree = new TTree("tree", "tree");
@@ -98,33 +85,47 @@ int main(int argc, char **argv) {
   double                 e[MAX_ID] = {TMath::QuietNaN()};  
   unsigned long long   e_t[MAX_ID] = {0};
   int               qdc[MAX_ID][8] = {0};
-  Int_t                   multiCry = 0 ; /// this is total multiplicity for all crystal
-
+  int                     multiCry = 0 ; /// this is total multiplicity for all crystal
+  int                        runID = 0;  // date-run-fileID, Dec15-02-001 = 1502001
+  int                    multiGagg = 0;
   //unsigned short  pileup[MAXMULTI];
 
-  tree->Branch("evID",         &evID, "event_ID/l"); 
-  tree->Branch("multi",       &multi, "multi/I"); 
-  tree->Branch("detID",           id, "detID[multi]/I");
-  tree->Branch("e",                e, "e[multi]/D");
-  tree->Branch("e_t",            e_t, "e_timestamp[multi]/l");
-  tree->Branch("qdc",            qdc, "qdc[multi][8]/I");
-  tree->Branch("multiCry", &multiCry, "multiplicity_crystal/I");  
-  
-  
+  tree->Branch("evID",           &evID, "event_ID/l"); 
+  tree->Branch("multi",         &multi, "multi/I"); 
+  tree->Branch("detID",             id, "detID[multi]/I");
+  tree->Branch("e",                  e, "e[multi]/D");
+  tree->Branch("e_t",              e_t, "e_timestamp[multi]/l");
+  tree->Branch("qdc",              qdc, "qdc[multi][8]/I");
+  tree->Branch("multiCry",   &multiCry, "multiplicity_crystal/I");  
+  tree->Branch("multiGagg", &multiGagg, "multiplicity_GAGG/I");  
+  tree->Branch("runID",         &runID, "runID/I");  
+
   int countGP = 0; //gamma-particle coincident
 
-  /////////////////////
-  // MAIN WHILE LOOP //
-  /////////////////////
-  while ( evt->IsEndOfFile() == false ) { //main while loop 
-      
-      long long int etime = -1; 
-      long long int tdif = -1; 
-      
-      while (1) { //get subevents and event build for one "event" 
-        
+  for( int i = 0; i < nFile; i++){
+  
+    evt->OpenFile(inFileName[i]);
+    if( evt->IsOpen() == false ) continue;
+    
+    printf("====================================================\n");
+    printf("\033[1;31m%s \033[m\n", inFileName[i].Data());
+  
+    int pos = inFileName[i].Last('/');
+    TString temp = inFileName[i];
+    temp.Remove(0, pos+1);
+    temp.Remove(0, 3);
+    temp.Remove(2, 1);
+    temp.Remove(4, 1);
+    temp.Remove(7);
+    runID = atoi(temp.Data());
+  
+    long long int etime = -1; 
+    long long int tdif = -1;
+
+
+    while ( evt->IsEndOfFile() == false ) { //main while loop 
+                  
         if ( evt->ReadBlock() == -1) break;
-        if ( evt->GetFilePos() < evt->GetFileSize() * ( 1. - frac/100.) ) continue; 
         
         //Set reference time for event building
         if (etime == -1) {
@@ -138,58 +139,68 @@ int main(int argc, char **argv) {
         //Check for end of event, rewind, and break out of while loop
         if (tdif > timeWindow) {
             
+            //Gate
+            if( multiCry > 0 && multiGagg > 0 ) {
+          
+              outRootFile->cd();
+              tree->Fill();
+              
+              countGP++;
+              
+            }
+            
+            evID ++;
+            
             etime = data->time;
             tdif  = 0;
             multi = 0;
             multiCry = 0;
-            
+            multiGagg = 0;
+
             id[multi]  = data->detID;
             e[multi]   = data->energy;
             e_t[multi] = data->time;
             for( int i = 0; i < 8; i++) qdc[multi][i] = data->QDCsum[i];
             multi++ ;
-            if( data->detID < 100 ) multiCry ++;
-            
-            break;           
+            if( data->detID < 100 ) multiCry ++;    
+            if( data->detID >= 200 ) multiGagg ++;            
+
         }else{
           //if within time window, fill array;
           id[multi]  = data->detID;
           e[multi]   = data->energy;
           e_t[multi] = data->time;
-          for( int i = 0; i < 8; i++) qdc[multi][i] = data->QDCsum[i];
+          for( int i = 0; i < 8; i++) qdc[multi-1][i] = data->QDCsum[i];
           multi++ ;
           if( data->detID < 100 ) multiCry ++;
+          if( data->detID >= 200 ) multiGagg ++;            
+
         }    
                
         // total pileups
         if (data->pileup == 1) {
             pileUpCount++;
         }
-        
      
-      } //end while loop for unpacking sub events and event building for one "event"
-      if (multi==0) break; //end main WHILE LOOP when out of events 
-      dataCount = evt->GetBlockID(); 
-      evID ++;
+        evt->PrintStatus(10000);
      
-      evt->PrintStatus(10000);
-   
-      // when no gagg, don't save
-      if( multiCry == 0 ||  multi == multiCry )  continue;
-      
-      countGP ++;
-   
-      outRootFile->cd();
-      tree->Fill();
-          
-  } // end main while loop 
-  /////////////////////////
-  // END MAIN WHILE LOOP //
-  /////////////////////////
-  evt->PrintStatus(1);
+    } // end main while loop 
 
-  outRootFile->cd();
-  tree->Write();
+    evt->PrintStatus(1);
+    printf("\n\n\n");
+    printf("             total number of event built : %llu\n", evID);    
+    printf(" total number of Gamma - GAGG coincdient : %d (%.3f %%)\n", countGP, countGP*1.0/evID);    
+    
+    outRootFile->cd();
+    tree->Write();
+    
+    double rootFileSize = outRootFile->GetSize()/1024./1024./1024. ; // in GB
+    printf(" ----------- root file size : %.3f GB\n", rootFileSize);
+    if( rootFileSize > 3.0 ) break;
+  
+  }
+  
+
   outRootFile->Close();
 
   printf("\n\n\n==================== finished.\r\n");

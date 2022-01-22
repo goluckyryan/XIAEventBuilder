@@ -58,7 +58,7 @@ int main(int argn, char **argv) {
   TTree * tree = new TTree("tree", "tree");
 
   tree->Branch("evID",    &data->eventID, "data_ID/L"); 
-  tree->Branch("id",           &data->id, "ID/s");
+  tree->Branch("id",        &data->detID, "ID/s");
   tree->Branch("e",        &data->energy, "crystal_energy/s");
   tree->Branch("e_t",        &data->time, "crystal_timestamp/l");
 
