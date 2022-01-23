@@ -77,27 +77,27 @@ void drawE(int CloverID = -1, bool cali = false, bool isLogy = false, double xMi
       }
       
       
-      /*
-      for( Int_t j = 0; j < nCrystalPerClover; j++){
-         int canvasID = CloverID < 0 ? nClover*j+ i + 1 : j + 1;
-         cRawE->cd(canvasID); 
-         cRawE->cd(canvasID)->SetGrid();       
-         cRawE->cd(canvasID)->SetTickx(2);   
-         cRawE->cd(canvasID)->SetTicky(2);   
-         cRawE->cd(canvasID)->SetBottomMargin(0.06);
-         if ( i == nClover -1 )  cRawE->cd(canvasID)->SetRightMargin(0.002);
-         if( isLogy ) cRawE->cd(canvasID)->SetLogy();
-         int hID = CloverID < 0 ? nCrystalPerClover*i+ j : nCrystalPerClover * CloverID + j ;
-         if( cali ) {
-            if ( xMin != 0 || xMax != 0 ) heCal[hID]->GetXaxis()->SetRangeUser(xMin, xMax);
-            heCal[hID]->SetMaximum(maxY);
-            heCal[hID]->Draw("");
-         }else{
-            if ( xMin != 0 || xMax != 0 ) he[hID]->GetXaxis()->SetRangeUser(xMin, xMax);
-            he[hID]->SetMaximum(maxY);
-            he[hID]->Draw("");
-         }
-      }*/
+      
+      ///for( Int_t j = 0; j < nCrystalPerClover; j++){
+      ///   int canvasID = CloverID < 0 ? nClover*j+ i + 1 : j + 1;
+      ///   cRawE->cd(canvasID); 
+      ///   cRawE->cd(canvasID)->SetGrid();       
+      ///   cRawE->cd(canvasID)->SetTickx(2);   
+      ///   cRawE->cd(canvasID)->SetTicky(2);   
+      ///   cRawE->cd(canvasID)->SetBottomMargin(0.06);
+      ///   if ( i == nClover -1 )  cRawE->cd(canvasID)->SetRightMargin(0.002);
+      ///   if( isLogy ) cRawE->cd(canvasID)->SetLogy();
+      ///   int hID = CloverID < 0 ? nCrystalPerClover*i+ j : nCrystalPerClover * CloverID + j ;
+      ///   if( cali ) {
+      ///      if ( xMin != 0 || xMax != 0 ) heCal[hID]->GetXaxis()->SetRangeUser(xMin, xMax);
+      ///      heCal[hID]->SetMaximum(maxY);
+      ///      heCal[hID]->Draw("");
+      ///   }else{
+      ///      if ( xMin != 0 || xMax != 0 ) he[hID]->GetXaxis()->SetRangeUser(xMin, xMax);
+      ///      he[hID]->SetMaximum(maxY);
+      ///      he[hID]->Draw("");
+      ///   }
+      ///}
    }
    
    cRawE->SetCrosshair(1);
@@ -144,7 +144,7 @@ void energyCalibration(int detID = -1, int BG = 10, double threshold = 0.1, doub
                                867.390,
                                964.055,
                               1085.842,
-                              1089.700,
+                              ///1089.700,
                               1112.087,
                               1408.022}; 
    

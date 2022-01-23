@@ -139,14 +139,13 @@ int main(int argc, char **argv) {
         //Check for end of event, rewind, and break out of while loop
         if (tdif > timeWindow) {
             
-            //Gate
+            Gate
             if( multiCry > 0 && multiGagg > 0 ) {
           
               outRootFile->cd();
               tree->Fill();
-              
+
               countGP++;
-              
             }
             
             evID ++;
