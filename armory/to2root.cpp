@@ -101,13 +101,14 @@ int main(int argc, char **argv) {
   tree->Branch("runID",         &runID, "runID/I");  
 
   int countGP = 0; //gamma-particle coincident
+  double totalDataSize = 0; 
 
   for( int i = 0; i < nFile; i++){
   
     evt->OpenFile(inFileName[i]);
     if( evt->IsOpen() == false ) continue;
     
-    printf("====================================================\n");
+    printf("==================================================== %d / %d\n", i, nFile);
     printf("\033[1;31m%s \033[m\n", inFileName[i].Data());
   
     int pos = inFileName[i].Last('/');
@@ -139,7 +140,7 @@ int main(int argc, char **argv) {
         //Check for end of event, rewind, and break out of while loop
         if (tdif > timeWindow) {
             
-            Gate
+            //Gate
             if( multiCry > 0 && multiGagg > 0 ) {
           
               outRootFile->cd();
@@ -193,8 +194,12 @@ int main(int argc, char **argv) {
     outRootFile->cd();
     tree->Write();
     
+    totalDataSize += evt->GetFileSize()/1024./1024./1024.;
+    
     double rootFileSize = outRootFile->GetSize()/1024./1024./1024. ; // in GB
     printf(" ----------- root file size : %.3f GB\n", rootFileSize);
+    printf(" ---------- total read size : %.3f GB\n", totalDataSize);
+    printf(" ----------- reduction rate : %.3f %%\n", rootFileSize*100./totalDataSize);
     if( rootFileSize > 3.0 ) break;
   
   }

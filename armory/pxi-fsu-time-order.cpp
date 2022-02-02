@@ -3,6 +3,7 @@
 /*                                       -- v2 Feb 2018  */
 /*                                       -- v3 Jun 2018  */
 /*                                       -- v4 May 2019  */
+/* modified for FSU T.L. Ryan Tang (FSU) -- v5 Feb 2022  */ 
 /*                                                       */
 /* !Time Order Events from Pixie-16 digitizers           */
 /* !Max of:                                              */
@@ -136,19 +137,17 @@ int main(int argc, char **argv) {
     if (getpgid(lockpid) >= 0) {
       FPPATH = fopen(pathfile, "r");
       if (FPPATH == NULL) {
-	online = 0;
-      }
-      else {	
-	fgets(line, 1024, FPPATH); //skip first line
-	fgets(line, 1024, FPPATH); //need second line 
-	sscanf(line,"%s\n", onlinefile);
-	fclose(FPPATH);	
+        online = 0;
+      }else {
+        fgets(line, 1024, FPPATH); //skip first line
+        fgets(line, 1024, FPPATH); //need second line 
+        sscanf(line,"%s\n", onlinefile);
+        fclose(FPPATH);	
 	if (filename == NULL) {	
 	  if (strcmp(onlinefile,argv[1]) == 0) {
 	    online = 1;
 	  }	
-	}	
-	else {
+	}else {
 	  if (strcmp(onlinefile,filename+1) == 0) {
 	    online = 1;
 	  }	

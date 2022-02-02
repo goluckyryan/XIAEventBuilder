@@ -9,6 +9,7 @@ xia2ev2*
 to2root*
 scan
 pxi-time-order
+pxi-fsu-time-order
 MergeEVT
 evt2hist
 ev22txt

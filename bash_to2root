@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [ $# -eq 0 ] || [ $1 == "-help"  ]; then
+  echo "$./process_run [saveFile] [TimeWindow] [evtDir]"
+  echo ""
+  
+  exit 1
+fi;
+
+SaveFile=$1
+
+DIR=$(pwd)
+TIMEWINDOW=100
+DATA_DIR=/home/ryan/XIAEventBuilder/data/data1/202112_16O_clarion2/XIAEventBuilder/
+
+fileList=$(\ls ${DATA_DIR}/Dec*/*/*.evt.to)
+numFile=$(\ls -1 ${DATA_DIR}/Dec*/*/*.evt.to | wc -l)
+
+echo "##############################################"
+echo "number of files : "$numFile
+echo "##############################################"
+
+./armory/to2root $SaveFile 100  $fileList
+
+
+exit 0
+
+
+    
