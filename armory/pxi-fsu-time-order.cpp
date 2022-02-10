@@ -66,43 +66,15 @@ struct subevent
 struct subevent *subevents[MAX_ID]; 
 int nevts[MAX_ID], iptr[MAX_ID];    
 int maxevts[MAX_ID];               
+struct subevent fillevents[MAX_ID];
 
+void saveBuffer( int i, int min_id){
 
-void swap64(long long int * a, long long int *b){
-  long long int t = *a;
-  *a = *b;
-  *b = t;
-}
-
-void swapInt(int * a, int *b){
-  int t = *a;
-  *a = *b;
-  *b = t;
-}
-
-int partition(long long int arr[], int index [], int low, int high){
-  
-  long long int pivot = arr[high];
-  int i = (low -1);
-  
-  for(int j = low; j <= high -1 ; j++){
-      if( arr[j] < pivot ){
-        i++;
-        swap64(&arr[i], &arr[j]);
-        swapInt(&index[i], &index[j]);
-      }
-  }
-  swap64(&arr[i+1], &arr[high]);
-  swapInt(&index[i+1], &index[high]);
-  return i+1;
-}
-
-void quickSort(long long int arr[], int index[], int low, int high){
-    if (low < high){
-        int pi = partition(arr, index, low, high);
-        quickSort(arr, index, low, pi - 1);
-        quickSort(arr, index, pi + 1, high);
-    }
+  memcpy( fillevents[i].data , subevents[min_id][iptr[min_id]].data, subevents[min_id][iptr[min_id]].length * sizeof(unsigned int));
+  fillevents[i].length    = subevents[min_id][iptr[min_id]].length;
+  fillevents[i].detID     = subevents[min_id][iptr[min_id]].detID;
+  fillevents[i].timestamp = subevents[min_id][iptr[min_id]].timestamp;
+    
 }
 
 
@@ -138,10 +110,10 @@ int main(int argc, char **argv) {
  
   memset(nevts, 0, sizeof(nevts));
   memset(iptr, 0, sizeof(iptr));     /// index of time
-  
-  long long int timeIndex[MAX_ID];
-  int index[MAX_ID];
-  int fillSize = 0;
+    
+  int saveBufferMem = 0;
+  int nFill = 0;
+  int FillFlag = false; 
 
   int i=0, j=0;
 
@@ -231,12 +203,24 @@ int main(int argc, char **argv) {
       subevents[i][j].timestamp = 0;      
       subevents[i][j].detID = -1;      
     }
+
+    //=== FSU modification
+    saveBufferMem += sizeof( unsigned int ) * MAX_SUB_LENGTH;
+    fillevents[i].data = new unsigned int [MAX_SUB_LENGTH];
+    fillevents[i].length = 0;
+    fillevents[i].timestamp = 0;      
+    fillevents[i].detID = -1;      
+
   }
+
   
+  //debug
   int count = 0;
   int debugCount = 0;
 
   printf("Static Memory = %ld KB (cf. MAX_ID=%d)\n", sizeof(subevents)/1024, MAX_ID);
+  printf("Save Buffer Memory = %.3f MB \n", saveBufferMem / 1024./1024.);
+  
   while (1) { //main while loop
 
     /////////
@@ -410,130 +394,95 @@ int main(int argc, char **argv) {
     
     //######################## FSU 
     // find group of event within timewindow, check is contain gamma. if not, throw away all. 
-    
-    if( eventWindow > 0 ){
-    
-      //quick sort of subevents[i][iptr[i]].timestamp, i = 0 , idmax +1
-      for( i = 0 ; i < idmax + 1; i++) {
+
+    // write event with minimum time to file
+    timemin_old = timemin; 
+    timemin = -1;          
+    for (i=0; i < idmax + 1; i++) {   //could be MAX_ID but limit ourselves to current max, idmax
+      if (nevts[i] > 0) {
+        if (timemin == -1) {
+          timemin = subevents[i][iptr[i]].timestamp; 
+          time_old = timemin;
+          min_id = i;   
+        }else if (subevents[i][iptr[i]].timestamp < timemin) {
+          timemin = subevents[i][iptr[i]].timestamp;  
+          time_old = timemin;
+          min_id = i;  
+        }    
+      }
+    } 
+
+    if (timemin > -1) {  
+      if (timemin < timemin_old) {
+        printf("\nWarning!!! timemin = %lld and timemin_old = %lld and min_id = %d\n", timemin, timemin_old, min_id); 
+        outoforder++;
+      }  
+      if (subevents[min_id][iptr[min_id]].data == NULL) {printf("Error: data = NULL\n"); return -1;}
+      
+      ///instead of writing, collect data within eventWindow, and also check is there any gamma data
+      
+      if( nFill == 0 ){
         
-        if( nevts[i] > 0 ){
-          timeIndex[i] = subevents[i][iptr[i]].timestamp; 
+        saveBuffer(nFill, min_id);
+        if( fillevents[nFill].detID < 100 ) FillFlag = true;
+        if ( count < debugCount) printf("%3d, %llu, %3d , %s\n", nFill, fillevents[nFill].timestamp, fillevents[nFill].detID,  FillFlag ? "fill" : "drop");
+        nFill ++;
+      
+      }else{
+        
+        if( subevents[min_id][iptr[min_id]].timestamp - fillevents[0].timestamp < eventWindow ) {
+
+          saveBuffer(nFill, min_id);
+          if( fillevents[nFill].detID < 100 ) FillFlag = true;
+          if ( count < debugCount) printf("%3d, %llu, %3d , %s\n", nFill, fillevents[nFill].timestamp, fillevents[nFill].detID,  FillFlag ? "fill" : "drop");
+          nFill ++;
+          
         }else{
-          timeIndex[i] = MAXLONGLONGINT; 
-        }
-        index[i] = i;
-        //printf("%3d , %llu, %d \n", i, timeIndex[i], index[i] );
-      }
-      quickSort(timeIndex, index, 0, idmax);
-      for( i = 0 ; i < idmax + 1; i++) {
-        //printf("%3d , %llu , %d\n", i, timeIndex[i], index[i]);
-      }
-      
-      //reduce the index size
-      fillSize = 1;
-      for( i = 1; i < idmax + 1; i++){
-        if( timeIndex[i] - timeIndex[0] < eventWindow) fillSize ++;
-      }
-      
-      
-      // display
-      if ( count < debugCount) {
-      //if ( count < debugCount || timeIndex[10] == MAXLONGLONGINT) {
-        printf("===============================================\n");
-        
-        for( int i = 0; i < idmax+1; i++) {
-          printf("%3d, %llu, %d \n", i, timeIndex[i], index[i]);
-          if( i == fillSize - 1 ) printf("------------------- %d \n", fillSize);
-        }
-
-      }
-      
-      if( timeIndex[0] == MAXLONGLONGINT ) break;
-      
-      //CHeck if fill evt.to for the data.
-      bool fillFlag = false;
-      
-      for( i = 0 ; i < fillSize; i++ ){
-        if( count < debugCount ) printf("********************* %llu , detID : %d\n", timeIndex[0], subevents[index[i]][iptr[index[i]]].detID);
-        if( subevents[index[i]][iptr[index[i]]].detID < 100 ) fillFlag = true;
-      }
-      if( count < debugCount ) printf("=============== fillFlag : %d \n", fillFlag);
-
-      for( i = 0; i < fillSize; i++){
-        min_id = index[i];
-
-        if( fillFlag ){        
-          fwrite(subevents[min_id][iptr[min_id]].data, sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length, 1, fpw);  
           
-          if( count < debugCount ) printf("filling  subevents[%d][iprt[%d]] \n", min_id, min_id);
-          evts_tot_write++;  
-        }else{
-          evts_tot_drop++;
+          if( FillFlag  ){
+            if ( count < debugCount) printf("----------------- filled \n");
+            for( i = 0; i < nFill; i++) fwrite(fillevents[i].data, sizeof(unsigned int)*fillevents[i].length, 1, fpw); 
+            evts_tot_write += nFill;  
+          }else{
+            if ( count < debugCount) printf("----------------- dropped \n");
+            evts_tot_drop += nFill;
+          }
+          
+          nFill = 0;
+          FillFlag = false ;
+
+          saveBuffer(nFill, min_id);
+          if( fillevents[nFill].detID < 100 ) FillFlag = true;
+          if ( count < debugCount) printf("%3d, %llu, %3d , %s\n", nFill, fillevents[nFill].timestamp, fillevents[nFill].detID,  FillFlag ? "fill" : "drop");
+          nFill ++;            
+          
         }
         
-        
-        //free data memory up until it's needed again
-        if( count < debugCount ) printf("    Free  subevents[%d][iprt[%d]] \n", min_id, min_id);
-        
-        free(subevents[min_id][iptr[min_id]].data); 
-        subevents[min_id][iptr[min_id]].data = NULL; 
-        totmem -= sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length; 
-        subevents[min_id][iptr[min_id]].length = 0; 
-        subevents[min_id][iptr[min_id]].timestamp = 0;
-        subevents[min_id][iptr[min_id]].detID = -1;
-          
-        nevts[min_id]--;  
-        if (++iptr[min_id] >= maxevts[min_id]) iptr[min_id] -= maxevts[min_id];
-            
       }
-    
-      count ++;
-    
-    }else{
       
-      /////////      
-      // write event with minimum time to file
-      timemin_old = timemin; 
-      timemin = -1;          
-      for (i=0; i < idmax + 1; i++) {   //could be MAX_ID but limit ourselves to current max, idmax
-        if (nevts[i] > 0) {
-          if (timemin == -1) {
-            timemin = subevents[i][iptr[i]].timestamp; 
-            time_old = timemin;
-            min_id = i;   
-          }else if (subevents[i][iptr[i]].timestamp < timemin) {
-            timemin = subevents[i][iptr[i]].timestamp;  
-            time_old = timemin;
-            min_id = i;  
-          }    
-        }
-      } 
+      ///fwrite(subevents[min_id][iptr[min_id]].data, sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length, 1, fpw);  
 
-      if (timemin > -1) {  
-        if (timemin < timemin_old) {
-          printf("\nWarning!!! timemin = %lld and timemin_old = %lld and min_id = %d\n", timemin, timemin_old, min_id); 
-          outoforder++;
-        }  
-        if (subevents[min_id][iptr[min_id]].data == NULL) {printf("Error: data = NULL\n"); return -1;}
+      //free data memory up until it's needed again
+      free(subevents[min_id][iptr[min_id]].data); 
+      subevents[min_id][iptr[min_id]].data = NULL; 
+      totmem -= sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length; 
+      subevents[min_id][iptr[min_id]].length = 0; 
+      subevents[min_id][iptr[min_id]].timestamp = 0;
         
-        fwrite(subevents[min_id][iptr[min_id]].data, sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length, 1, fpw);  
-
-        //free data memory up until it's needed again
-        free(subevents[min_id][iptr[min_id]].data); 
-        subevents[min_id][iptr[min_id]].data = NULL; 
-        totmem -= sizeof(unsigned int)*subevents[min_id][iptr[min_id]].length; 
-        subevents[min_id][iptr[min_id]].length = 0; 
-        subevents[min_id][iptr[min_id]].timestamp = 0;
-          
-        nevts[min_id]--;  
-        if (++iptr[min_id] >= maxevts[min_id]) iptr[min_id] -= maxevts[min_id];
-        evts_tot_write++;  
-        
-      }else break;
-      /////////
+      nevts[min_id]--;  
+      if (++iptr[min_id] >= maxevts[min_id]) iptr[min_id] -= maxevts[min_id];
+      ///evts_tot_write++;  
       
+    }else { // fill the rest of data
+      
+      for( i = 0; i < nFill; i++) fwrite(fillevents[i].data, sizeof(unsigned int)*fillevents[i].length, 1, fpw); 
+      evts_tot_drop += nFill;  
+      
+      break;
     }
-
+    
+    count ++;
+   
     //print statistics
     if( evts_tot_read % 10000 == 0 )
       printf("Malloc (%d MB) : evts in (\x1B[34m%lld\x1B[0m) : evts out (\x1B[32m%lld\x1B[0m) : evts drop (\x1B[32m%lld\x1B[0m) : diff (\x1B[31m%lld\x1B[0m)\r", 
@@ -552,7 +501,8 @@ int main(int argc, char **argv) {
   
   //print statistics last time
   printf("\33[2K");
-  printf("Malloc (%d MB) : evts in (\x1B[34m%lld\x1B[0m) : evts out (\x1B[32m%lld\x1B[0m) : diff (\x1B[31m%lld\x1B[0m)\n", (totmem)/1024/1024, evts_tot_read, evts_tot_write, evts_tot_read-evts_tot_write); 
+  printf("Malloc (%d MB) : evts in (\x1B[34m%lld\x1B[0m) : evts out (\x1B[32m%lld\x1B[0m) : evts drop (\x1B[32m%lld\x1B[0m) : diff (\x1B[31m%lld\x1B[0m)\n", 
+        (totmem)/1024/1024, evts_tot_read, evts_tot_write, evts_tot_drop, evts_tot_read-evts_tot_write - evts_tot_drop); 
   if (outoforder > 0) printf("\x1B[31mWarning, there are %d events out of time order\x1B[0m\n", outoforder);
   if (totmem != 0) printf("\x1B[31mError: total memory not conserved\x1B[0m\n");
 
