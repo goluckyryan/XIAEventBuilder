@@ -430,7 +430,7 @@ int main(int argc, char **argv) {
       
       }else{
         
-        if( subevents[min_id][iptr[min_id]].timestamp - fillevents[0].timestamp < eventWindow ) {
+        if( subevents[min_id][iptr[min_id]].timestamp - fillevents[0].timestamp <= eventWindow ) {
 
           saveBuffer(nFill, min_id);
           if( fillevents[nFill].detID < 100 ) FillFlag = true;
