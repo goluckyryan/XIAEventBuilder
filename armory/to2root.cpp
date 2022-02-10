@@ -102,13 +102,14 @@ int main(int argc, char **argv) {
 
   int countGP = 0; //gamma-particle coincident
   double totalDataSize = 0; 
+  int outFileCount = 0;
 
   for( int i = 0; i < nFile; i++){
   
     evt->OpenFile(inFileName[i]);
     if( evt->IsOpen() == false ) continue;
     
-    printf("==================================================== %d / %d\n", i, nFile);
+    printf("==================================================== %d / %d\n", i+1, nFile);
     printf("\033[1;31m%s \033[m\n", inFileName[i].Data());
   
     int pos = inFileName[i].Last('/');
@@ -141,13 +142,13 @@ int main(int argc, char **argv) {
         if (tdif > timeWindow) {
             
             //Gate
-            if( multiCry > 0 && multiGagg > 0 ) {
-          
-              outRootFile->cd();
-              tree->Fill();
-
-              countGP++;
-            }
+            //if( multiCry > 2 && multiGagg ==0  ) {
+            //
+            outRootFile->cd();
+            tree->Fill();
+            //
+            //  countGP++;
+            //}
             
             evID ++;
             
@@ -200,8 +201,38 @@ int main(int argc, char **argv) {
     printf(" ----------- root file size : %.3f GB\n", rootFileSize);
     printf(" ---------- total read size : %.3f GB\n", totalDataSize);
     printf(" ----------- reduction rate : %.3f %%\n", rootFileSize*100./totalDataSize);
-    if( rootFileSize > 3.0 ) break;
-  
+    
+    if( rootFileSize > 3.0 ) {
+      break;
+    }
+    
+    ///try to open a new root file when file size > 2 GB
+    /*if( rootFileSize > 2.0 ) {
+      
+      outRootFile->Close();
+      delete outRootFile;
+      delete tree;
+      outFileCount += 1;
+      
+      if( outFileCount > 5 ) break;
+      
+      TString outFileName2 = outFileName;
+      outFileName2.Insert(outFileName.Sizeof() - 6, Form("_%03d",outFileCount)); 
+      outRootFile = new TFile( outFileName2, "recreate");
+    
+      tree = new TTree("tree", "tree");
+      tree->Branch("evID",           &evID, "event_ID/l"); 
+      tree->Branch("multi",         &multi, "multi/I"); 
+      tree->Branch("detID",             id, "detID[multi]/I");
+      tree->Branch("e",                  e, "e[multi]/D");
+      tree->Branch("e_t",              e_t, "e_timestamp[multi]/l");
+      tree->Branch("qdc",              qdc, "qdc[multi][8]/I");
+      tree->Branch("multiCry",   &multiCry, "multiplicity_crystal/I");  
+      tree->Branch("multiGagg", &multiGagg, "multiplicity_GAGG/I");  
+      tree->Branch("runID",         &runID, "runID/I");  
+    
+    }*/
+    
   }
   
 
