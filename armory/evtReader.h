@@ -24,98 +24,142 @@
 
 class evtReader{
 
-public:
-  DataBlock * data;
+  public:
+    DataBlock * data;
 
-private:
-  FILE * inFile;
-  
-  long int inFileSize;
-  long int inFilePos;
-  bool endOfFile;  
-  bool isOpened;
-  Long64_t blockID;
-  
-  TBenchmark gClock;
-
-
-///============================================ Methods
-public:
-  evtReader(){
-    inFile = 0;
-    data = new DataBlock();
+  private:
+    FILE * inFile;
     
-    inFileSize = 0;
-    inFilePos = 0;
-
-    blockID = -1;
-    endOfFile = false;
-    isOpened = false;      
-  }
-  evtReader(TString inFileName){ 
-    OpenFile(inFileName);
-  }
-  
-  ~evtReader(){
-    fclose(inFile);
-    delete inFile;
-    delete data;
-  }
-  
-  void OpenFile(TString inFileName){
-    inFile = fopen(inFileName, "r");
-    if( inFile == NULL ){
-      printf("Cannot read file : %s \n", inFileName.Data());
-    }else{
-      fseek(inFile, 0L, SEEK_END);
-      inFileSize = ftell(inFile);
-      inFilePos = 0;
-      rewind(inFile); ///back to the File begining
-
-      data->Clear();
-      blockID = -1;
-      
-      endOfFile = false;
-      isOpened = true;
-      
-      gClock.Reset();
-      gClock.Start("timer");
-    }
+    long int inFileSize;
+    long int inFilePos;
+    bool endOfFile;  
+    bool isOpened;
+    Long64_t blockID;
     
-  }
+    unsigned int extraHeader[14];
+    unsigned int traceBlock[4000];
+    
+    long int nBlock;
+    
+    TBenchmark gClock;
+
+  ///============================================ Methods
+  public:
+
+    evtReader();
+    evtReader(TString inFileName);
+    ~evtReader();
+    
+    void OpenFile(TString inFileName);
+    
+    void UpdateFileSize();
+    bool IsOpen()           { return isOpened;}
+    bool IsEndOfFile(); 
+    
+    long int GetFilePos()   {return inFilePos;}
+    long int GetFileSize()  {return inFileSize;}
+    
+    Long64_t GetBlockID()   { return blockID;}
+    int ReadBlock(int opt = 0);  /// 0 = default, fill data
+                                 /// 1 = no fill data
+
+    void ScanNumberOfBlock();
+    Long64_t GetNumberOfBlock() {return nBlock;}
+    void PrintStatus(int mod);
+    
+};
+
+
+//========================== implementation
+
+evtReader::evtReader(){
+  inFile = 0;
+  data = new DataBlock();
   
-  void UpdateFileSize(){
-    if( inFile == NULL ) return;
+  inFileSize = 0;
+  inFilePos = 0;
+
+  blockID = -1;
+  endOfFile = false;
+  isOpened = false;
+  
+  nBlock = 0;        
+}
+
+  
+evtReader::~evtReader(){
+  fclose(inFile);
+  delete inFile;
+  delete data;
+}
+  
+
+evtReader::evtReader(TString inFileName){ 
+  inFile = 0;
+  data = new DataBlock();
+  
+  inFileSize = 0;
+  inFilePos = 0;
+
+  blockID = -1;
+  endOfFile = false;
+  isOpened = false;
+  
+  nBlock = 0;    
+  OpenFile(inFileName);
+}
+
+void evtReader::OpenFile(TString inFileName){
+  inFile = fopen(inFileName, "r");
+  if( inFile == NULL ){
+    printf("Cannot read file : %s \n", inFileName.Data());
+  }else{
     fseek(inFile, 0L, SEEK_END);
     inFileSize = ftell(inFile);
-    fseek(inFile, inFilePos, SEEK_SET);
-  }
-  
-  bool IsOpen(){ return isOpened;}
-  
-  bool IsEndOfFile() {
-    int haha = feof(inFile);
-    return haha > 0 ? true: false;
-  }
-  
-  long int GetFilePos(){return inFilePos;}
-  long int GetFileSize(){return inFileSize;}
+    inFilePos = 0;
+    rewind(inFile); ///back to the File begining
 
-  Long64_t GetBlockID(){ return blockID;}
-
-  int ReadBlock(){
-
-    if( feof(inFile) ) return -1;
-    if( endOfFile ) return -1;
-
-    unsigned int header[4]; //read 4 header, unsigned int = 4 byte = 32 bits. 
-
-    if ( fread(header, sizeof(header), 1, inFile) != 1 ) {
-        endOfFile = true;
-        return -1;
-    }
-    blockID ++;
+    data->Clear();
+    blockID = -1;
     
+    endOfFile = false;
+    isOpened = true;
+    
+    gClock.Reset();
+    gClock.Start("timer");
+  }
+  
+};
+
+
+void evtReader::UpdateFileSize(){
+  if( inFile == NULL ) return;
+  fseek(inFile, 0L, SEEK_END);
+  inFileSize = ftell(inFile);
+  fseek(inFile, inFilePos, SEEK_SET);
+}
+
+bool evtReader::IsEndOfFile() {
+  int haha = feof(inFile);
+  return haha > 0 ? true: false;
+}
+
+
+int evtReader::ReadBlock(int opt = 0){
+
+  if( feof(inFile) ) return -1;
+  if( endOfFile ) return -1;
+
+  unsigned int header[4]; ///read 4 header, unsigned int = 4 byte = 32 bits. 
+
+  if ( fread(header, sizeof(header), 1, inFile) != 1 ) {
+      endOfFile = true;
+      return -1;
+  }
+  blockID ++;
+
+
+  if( opt == 0 ){
     /// see the Pixie-16 user manual, Table4-2
     data->eventID      = blockID;
     data->ch           =  header[0] & 0xF ;
@@ -137,8 +181,7 @@ public:
 
     ///======== read QDCsum
     if( data->headerLength >= 4 ){
-      unsigned int extraHeader[data->headerLength-4];
-      fread(extraHeader, sizeof(extraHeader), 1, inFile);
+      fread(extraHeader, sizeof(unsigned int) * (data->headerLength-4), 1, inFile);
       if( data->headerLength == 8 || data->headerLength == 16){
         data->trailing = extraHeader[0];
         data->leading  = extraHeader[1];
@@ -161,8 +204,7 @@ public:
     }
     ///====== read trace
     if( data->eventLength > data->headerLength ){      
-      unsigned int traceBlock[data->trace_length / 2];
-      fread(traceBlock, sizeof(traceBlock), 1, inFile);
+      fread(traceBlock, sizeof(unsigned int) * ( data->trace_length / 2 ), 1, inFile);
       
       for( int i = 0; i < data->trace_length/2 ; i++){
         data->trace[2*i+0] = traceBlock[i] & 0xFFFF ;
@@ -184,27 +226,60 @@ public:
         }
       }
     }
-    
-    inFilePos = ftell(inFile);
-
-    return 1; 
   }
-
-
-  void PrintStatus(int id){
+  
+  if( opt == 1 ){
     
-    ///==== event stats, print status every 10000 events
-    if ( blockID % id == 0 ) {
-      UpdateFileSize();
-      gClock.Stop("timer");
-      double time = gClock.GetRealTime("timer");
-      gClock.Start("timer");
-      printf("Total measurements: \x1B[32m%llu \x1B[0m\nReading Pos: \x1B[32m %.3f/%.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
-                   blockID, inFilePos/(1024.*1024.*1024.), inFileSize/1024./1024./1024,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
-    }   
+    data->headerLength = (header[0] >> 12) & 0x1F;
+    data->eventLength  = (header[0] >> 17) & 0x3FFF;
+    data->trace_length = (header[3] >> 16) & 0x7FFF;
     
+    if( data->headerLength >= 4 ){
+      fread(extraHeader, sizeof(unsigned int) * (data->headerLength-4), 1, inFile);
+    }
+    if( data->eventLength > data->headerLength ){     
+      fread(traceBlock, sizeof(unsigned int) * ( data->trace_length / 2 ), 1, inFile);
+    }
   }
+  
+  inFilePos = ftell(inFile);
 
-};
+  return 1; 
+}
+
+
+void evtReader::ScanNumberOfBlock(){
+  
+  nBlock = 0;
+  while( ReadBlock(1) != -1 ){
+    nBlock ++;
+    PrintStatus(10000);
+  }
+  
+  printf("\n\n\n");
+  printf("scan complete: number of data Block : %ld\n", nBlock);
+  
+  inFilePos = 0;
+  blockID = -1;
+  
+  rewind(inFile); ///back to the File begining
+  endOfFile = false;
+  
+}
+
+
+void evtReader::PrintStatus(int mod){
+  
+  ///==== event stats, print status every 10000 events
+  if ( blockID % mod == 0 ) {
+    UpdateFileSize();
+    gClock.Stop("timer");
+    double time = gClock.GetRealTime("timer");
+    gClock.Start("timer");
+    printf("Total measurements: \x1B[32m%llu \x1B[0m\nReading Pos: \x1B[32m %.3f/%.3f GB\x1B[0m\nTime used:%3.0f min %5.2f sec\033[A\033[A\r", 
+                 blockID, inFilePos/(1024.*1024.*1024.), inFileSize/1024./1024./1024,  TMath::Floor(time/60.), time - TMath::Floor(time/60.)*60.);
+  }   
+  
+}
 
 #endif
