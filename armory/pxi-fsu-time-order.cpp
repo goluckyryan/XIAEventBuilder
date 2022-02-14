@@ -79,6 +79,14 @@ void saveBuffer( int i, int min_id){
 
 
 int main(int argc, char **argv) {
+  
+  // Check that the corrent number of arguments were provided.
+  if (argc < 3)    {
+    printf("Incorrect number of arguments:\n");
+    printf("%s [evt File] [timeWindow]\n", argv[0]);
+    return 1;
+  }
+  
           
   FILE *fpr, *fpw;
   long int fprsize=0, fprsize_orig=0, fprsize_old=-1, fprpos=0;
@@ -128,7 +136,8 @@ int main(int argc, char **argv) {
   char *filename = strrchr(argv[1], '/');
   if (filename == NULL) strcpy(filenameto,argv[1]);
   else strcpy(filenameto,filename+1);
-  strcat(filenameto,".to");
+  strcat(filenameto,".to.fsu.");
+  strcat(filenameto, argv[2] );
   if ((fpw = fopen(filenameto, "w")) == NULL) {
     fprintf(stderr, "Error, cannot open output file %s\n", filenameto);
     return 1;
