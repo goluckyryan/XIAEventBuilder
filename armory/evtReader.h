@@ -30,16 +30,15 @@ class evtReader{
   private:
     FILE * inFile;
     
-    long int inFileSize;
-    long int inFilePos;
-    bool endOfFile;  
-    bool isOpened;
-    Long64_t blockID;
+    long int  inFileSize;
+    long int  inFilePos;
+    bool      endOfFile;  
+    bool      isOpened;
+    Long64_t  blockID;
+    long int  nBlock;
     
     unsigned int extraHeader[14];
     unsigned int traceBlock[4000];
-    
-    long int nBlock;
     
     TBenchmark gClock;
 
@@ -53,18 +52,18 @@ class evtReader{
     void OpenFile(TString inFileName);
     
     void UpdateFileSize();
-    bool IsOpen()           { return isOpened;}
-    bool IsEndOfFile(); 
+    bool IsEndOfFile();
     
-    long int GetFilePos()   {return inFilePos;}
-    long int GetFileSize()  {return inFileSize;}
+    bool IsOpen()               {return isOpened;}         
+    long int GetFilePos()       {return inFilePos;}
+    long int GetFileSize()      {return inFileSize;}
+    Long64_t GetBlockID()       {return blockID;}
+    Long64_t GetNumberOfBlock() {return nBlock;}
     
-    Long64_t GetBlockID()   { return blockID;}
     int ReadBlock(int opt = 0);  /// 0 = default, fill data
                                  /// 1 = no fill data
 
     void ScanNumberOfBlock();
-    Long64_t GetNumberOfBlock() {return nBlock;}
     void PrintStatus(int mod);
     
 };
@@ -73,17 +72,16 @@ class evtReader{
 //========================== implementation
 
 evtReader::evtReader(){
-  inFile = 0;
-  data = new DataBlock();
+  inFile     = 0;
+  data       = new DataBlock();
   
   inFileSize = 0;
-  inFilePos = 0;
-
-  blockID = -1;
-  endOfFile = false;
-  isOpened = false;
+  inFilePos  = 0;
   
-  nBlock = 0;        
+  nBlock     = 0;    
+  blockID    = -1;
+  endOfFile  = false;
+  isOpened   = false;
 }
 
   
@@ -95,17 +93,17 @@ evtReader::~evtReader(){
   
 
 evtReader::evtReader(TString inFileName){ 
-  inFile = 0;
-  data = new DataBlock();
+  inFile     = 0;
+  data       = new DataBlock();
   
   inFileSize = 0;
-  inFilePos = 0;
+  inFilePos  = 0;
 
-  blockID = -1;
-  endOfFile = false;
-  isOpened = false;
+  nBlock     = 0;    
+  blockID    = -1;
+  endOfFile  = false;
+  isOpened   = false;
   
-  nBlock = 0;    
   OpenFile(inFileName);
 }
 
@@ -116,21 +114,14 @@ void evtReader::OpenFile(TString inFileName){
   }else{
     fseek(inFile, 0L, SEEK_END);
     inFileSize = ftell(inFile);
-    inFilePos = 0;
     rewind(inFile); ///back to the File begining
 
     data->Clear();
-    blockID = -1;
-    
-    endOfFile = false;
-    isOpened = true;
     
     gClock.Reset();
     gClock.Start("timer");
   }
-  
 };
-
 
 void evtReader::UpdateFileSize(){
   if( inFile == NULL ) return;
