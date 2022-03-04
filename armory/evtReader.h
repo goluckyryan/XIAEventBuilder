@@ -37,7 +37,7 @@ class evtReader{
     long int  nBlock;
     
     unsigned int extraHeader[14];
-    unsigned int traceBlock[4000];
+    unsigned int traceBlock[MAX_TRACE_LENGHT/2];
     
     TBenchmark gClock;
 
@@ -167,6 +167,7 @@ int evtReader::ReadBlock(int opt){
     data->trace_out_of_range =  header[3] >> 31;
 
     data->ClearQDC();
+    data->ClearTrace();
 
     ///======== read QDCsum
     if( data->headerLength >= 4 ){
@@ -192,15 +193,16 @@ int evtReader::ReadBlock(int opt){
       data->baseline = 0;
     }
     ///====== read trace
-    if( data->eventLength > data->headerLength ){      
+    if( data->eventLength > data->headerLength ){
       fread(traceBlock, sizeof(unsigned int) * ( data->trace_length / 2 ), 1, inFile);
-      
+    
       for( int i = 0; i < data->trace_length/2 ; i++){
         data->trace[2*i+0] =  traceBlock[i] & 0xFFFF ;
         data->trace[2*i+1] = (traceBlock[i] >> 16 ) & 0xFFFF ;
       }
       
       ///make QDC by trace
+      /**
       if( data->headerLength == 4 || data->headerLength == 8 ) {
         for( int i = 0; i < 8; i++){ data->QDCsum[i] = 0;}
         for( int i = 0; i < data->trace_length; i++){
@@ -213,7 +215,7 @@ int evtReader::ReadBlock(int opt){
           if( 160 <= i && i < 175 ) data->QDCsum[6] += data->trace[i];
           if( 175 <= i && i < 200 ) data->QDCsum[7] += data->trace[i];
         }
-      }
+      }*/
     }
   }
   

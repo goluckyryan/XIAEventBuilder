@@ -81,19 +81,17 @@ int main(int argn, char **argv) {
     TBenchmark clock2;
     clock2.Reset();
     clock2.Start("timer");
+    
+    evt->ScanNumberOfBlock();
 
     //=============== Read File
     while( evt->IsEndOfFile() == false ){
       
       evt->ReadBlock();
-      evt->PrintStatus(10000);
+      //evt->PrintStatus(10000);
       
-    
       int id = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
       detID = mapping[id];
-      
-      printf("--------- a\n");
-      outFile->
       
       //cern fill tree
       outFile->cd();

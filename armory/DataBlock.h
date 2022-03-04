@@ -14,6 +14,8 @@
 #include "TTree.h"
 #include "TString.h"
 
+#define MAX_TRACE_LENGHT 16000
+
 class DataBlock{
 
 public:
@@ -37,7 +39,7 @@ public:
   
   ULong64_t eventID;
   
-  UShort_t    trace[1024];
+  UShort_t  trace[MAX_TRACE_LENGHT];
   
   DataBlock(){
     Clear();
@@ -71,7 +73,7 @@ public:
   }
   
   void ClearTrace(){
-    for( int i = 0; i < 1024; i++) trace[i] = 0;    
+    for( int i = 0 ; i < MAX_TRACE_LENGHT; i++) trace[i] = 0;
   }
   
   
