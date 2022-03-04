@@ -14,7 +14,6 @@
 #include "TString.h"
 #include "TBenchmark.h"
 
-#include "../mapping.h"
 #include "../armory/DataBlock.h"
 
 #define MAX_CRATES 2
@@ -120,6 +119,8 @@ void evtReader::OpenFile(TString inFileName){
     
     gClock.Reset();
     gClock.Start("timer");
+    
+    isOpened = true;
   }
 };
 
@@ -136,7 +137,7 @@ bool evtReader::IsEndOfFile() {
 }
 
 
-int evtReader::ReadBlock(int opt = 0){
+int evtReader::ReadBlock(int opt){
 
   if( feof(inFile) ) return -1;
   if( endOfFile ) return -1;
@@ -164,9 +165,6 @@ int evtReader::ReadBlock(int opt = 0){
     data->energy       = (header[3] & 0xFFFF ); 
     data->trace_length = (header[3] >> 16) & 0x7FFF;
     data->trace_out_of_range =  header[3] >> 31;
-
-    data->id = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
-    data->detID = mapping[data->id];
 
     data->ClearQDC();
 
@@ -198,7 +196,7 @@ int evtReader::ReadBlock(int opt = 0){
       fread(traceBlock, sizeof(unsigned int) * ( data->trace_length / 2 ), 1, inFile);
       
       for( int i = 0; i < data->trace_length/2 ; i++){
-        data->trace[2*i+0] = traceBlock[i] & 0xFFFF ;
+        data->trace[2*i+0] =  traceBlock[i] & 0xFFFF ;
         data->trace[2*i+1] = (traceBlock[i] >> 16 ) & 0xFFFF ;
       }
       

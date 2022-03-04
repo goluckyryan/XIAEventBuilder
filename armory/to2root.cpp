@@ -158,23 +158,25 @@ int main(int argc, char **argv) {
             multiCry = 0;
             multiGagg = 0;
 
-            id[multi]  = data->detID;
+            int haha  = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
+            id[multi]  = mapping[haha];
             e[multi]   = data->energy;
             e_t[multi] = data->time;
             for( int i = 0; i < 8; i++) qdc[multi][i] = data->QDCsum[i];
             multi++ ;
-            if( data->detID < 100 ) multiCry ++;    
-            if( data->detID >= 200 ) multiGagg ++;            
+            if( id[multi] < 100 ) multiCry ++;    
+            if( id[multi] >= 200 ) multiGagg ++;            
 
         }else{
           //if within time window, fill array;
-          id[multi]  = data->detID;
+          int haha  = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
+          id[multi]  = mapping[haha];
           e[multi]   = data->energy;
           e_t[multi] = data->time;
           for( int i = 0; i < 8; i++) qdc[multi-1][i] = data->QDCsum[i];
           multi++ ;
-          if( data->detID < 100 ) multiCry ++;
-          if( data->detID >= 200 ) multiGagg ++;            
+          if( id[multi] < 100 ) multiCry ++;
+          if( id[multi] >= 200 ) multiGagg ++;            
 
         }    
                

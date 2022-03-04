@@ -50,7 +50,7 @@ int main(int argn, char **argv) {
 
   evtReader * evt = new evtReader();
   DataBlock * data = evt->data;
-  
+  short detID;
   printf("====================================\n");
 
   //====== ROOT file
@@ -58,7 +58,7 @@ int main(int argn, char **argv) {
   TTree * tree = new TTree("tree", "tree");
 
   tree->Branch("evID",    &data->eventID, "data_ID/L"); 
-  tree->Branch("id",        &data->detID, "ID/s");
+  tree->Branch("detID",           &detID, "detID/s");
   tree->Branch("e",        &data->energy, "crystal_energy/s");
   tree->Branch("e_t",        &data->time, "crystal_timestamp/l");
 
@@ -66,7 +66,6 @@ int main(int argn, char **argv) {
   TBenchmark gClock;
   gClock.Reset();
   gClock.Start("timer");
-
 
   //=========================================
   //=========================================
@@ -89,10 +88,16 @@ int main(int argn, char **argv) {
       evt->ReadBlock();
       evt->PrintStatus(10000);
       
+    
+      int id = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
+      detID = mapping[id];
+      
+      printf("--------- a\n");
+      outFile->
+      
       //cern fill tree
       outFile->cd();
       tree->Fill();
-
     }
     
     clock2.Stop("timer");

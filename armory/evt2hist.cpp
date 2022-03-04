@@ -109,14 +109,15 @@ int main(int argn, char **argv) {
   //================ ROOT tree
   TFile * fFile = NULL;
   TTree * tree = NULL; 
+  
+  short detID;
+  
   if( rootFileName != "" ){
     fFile = new TFile(rootFileName, "RECREATE");
     tree = new TTree("tree", "tree");
     
-    
     tree->Branch("headerLenght", &data->headerLength, "HeaderLength/s");
-    tree->Branch("detID",               &data->detID, "detID/s");
-    tree->Branch("id",                     &data->id, "id/s");
+    tree->Branch("detID",                     &detID, "detID/s");
     tree->Branch("e",                  &data->energy, "energy/s");
     tree->Branch("e_t",                  &data->time, "timestamp/l");
     tree->Branch("p",                  &data->pileup, "pileup/O");
@@ -191,22 +192,26 @@ int main(int argn, char **argv) {
     }
     
     //==== Fill Histogram
-    if( 0 <= data->detID && data->detID < 100 && data->energy > rawEnergyThreshold ){
+    
+    int haha  = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
+    detID  = mapping[haha];
+    
+    if( 0 <= detID && detID < 100 && data->energy > rawEnergyThreshold ){
       if( corrFile != ""){
         ///========= apply correction
-        int order = (int) eCorr[data->detID].size();
+        int order = (int) eCorr[detID].size();
         double eCal = 0;
         for( int k = 0; k < order ; k++){
-           eCal += eCorr[data->detID][k] * TMath::Power(data->energy, k);
+           eCal += eCorr[detID][k] * TMath::Power(data->energy, k);
         }
-        he[data->detID]->Fill(eCal);
+        he[detID]->Fill(eCal);
       }else{
-        he[data->detID]->Fill(data->energy);
+        he[detID]->Fill(data->energy);
       }
     }
     
     ///============ QDC 
-    if( data->detID == GAGGID && (data->headerLength < data->eventLength) ){
+    if( detID == GAGGID && (data->headerLength < data->eventLength) ){
         double bg   = (data->QDCsum[0] + data->QDCsum[1])/60.;
         double peak = data->QDCsum[3]/20. - bg;
         double tail = data->QDCsum[5]/55. - bg;

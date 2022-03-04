@@ -35,8 +35,6 @@ public:
   Int_t            baseline;
   Int_t           QDCsum[8];
   
-  UShort_t id;
-  Int_t  detID;
   ULong64_t eventID;
   
   UShort_t    trace[1024];
@@ -59,8 +57,6 @@ public:
     energy = 0;
     trace_length = 0;
     trace_out_of_range = 0;
-    id = 0;
-    detID = -1;
     eventID = 0;
     ClearQDC();
     ClearTrace();
@@ -81,7 +77,7 @@ public:
   
   void Print(){
     printf("============== eventID : %llu\n", eventID);
-    printf("Crate: %d, Slot: %d, Ch: %d | id: %d = detID : %d \n", crate, slot, ch, id, detID);
+    printf("Crate: %d, Slot: %d, Ch: %d \n", crate, slot, ch);
     printf("HeaderLength: %d, Event Length: %d, energy: %d, timeStamp: %llu\n", headerLength, eventLength, energy, time);
     printf("trace_length: %d, pile-up:%d\n", trace_length, pileup); 
     if( headerLength > 4 ){
