@@ -61,7 +61,9 @@ int main(int argn, char **argv) {
   tree->Branch("detID",           &detID, "detID/s");
   tree->Branch("e",        &data->energy, "crystal_energy/s");
   tree->Branch("e_t",        &data->time, "crystal_timestamp/l");
-
+  tree->Branch("p",                  &data->pileup, "pileup/O");
+  tree->Branch("trace_length", &data->trace_length, "trace_length/s");
+  tree->Branch("trace",                data->trace, "trace[trace_length]/s"); 
   
   TBenchmark gClock;
   gClock.Reset();

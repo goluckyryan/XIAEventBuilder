@@ -39,7 +39,7 @@ void readRawTrace(TString fileName, int minDetID = 0, int maxDetID = 1000){
    
 /**///==============================================================   
    UShort_t   detID;
-   UShort_t trace[1024];
+   UShort_t trace[16000];
    UShort_t  traceLength;
    Int_t      QDC[8];
    ULong64_t  time;
@@ -99,6 +99,7 @@ void readRawTrace(TString fileName, int minDetID = 0, int maxDetID = 1000){
       cRead->Clear();
       g->Draw("AL");
 
+      /*
       text.SetTextColor(kRed);
       text.DrawLatex(0.12, 0.85,  Form("QDC, QDCtrace (diff)"));
       for( int i = 0; i < 8; i++) {
@@ -108,7 +109,8 @@ void readRawTrace(TString fileName, int minDetID = 0, int maxDetID = 1000){
          TBox * box = new TBox(x[i], minY, x[i+1], maxY);
          box->SetFillColorAlpha(color[i], 0.1);
          box->Draw("same");
-      }  
+      } 
+      */ 
       cRead->Update();         
       gSystem->ProcessEvents();
       
