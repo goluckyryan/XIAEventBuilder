@@ -1,0 +1,15 @@
+#!/bin/bash
+
+DIR=$1
+
+evtList=$(ls ${DIR}/*.evt)
+
+echo "############### list of evt files"
+for a in ${evtList} ; do
+  echo ${a}
+done
+
+for a in ${evtList} ; do
+  echo -e "\033[1;31m============================\033[m"
+  ./armory/pxi-fsu-time-order ${a} 100
+done

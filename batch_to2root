@@ -11,10 +11,10 @@ SaveFile=$1
 
 DIR=$(pwd)
 TIMEWINDOW=100
-DATA_DIR=/home/ryan/XIAEventBuilder/data/data1/202112_16O_clarion2/XIAEventBuilder/
+DATA_DIR=data/data/Mar10-04
 
-fileList=$(\ls ${DATA_DIR}/Dec*/*/*.evt.to)
-numFile=$(\ls -1 ${DATA_DIR}/Dec*/*/*.evt.to | wc -l)
+fileList=$(\ls $DIR/${DATA_DIR}/*.evt.to.fsu.100)
+numFile=$(\ls -1 $DIR/${DATA_DIR}/*.evt.to.fsu.100 | wc -l)
 
 echo "##############################################"
 echo "number of files : "$numFile

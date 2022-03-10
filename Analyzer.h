@@ -38,6 +38,7 @@ public :
    Int_t           multi;
    Int_t           multiCry;
    Int_t           multiGagg;
+   Bool_t          pileup[MAX_MULTI];
 
    // List of branches
    TBranch        *b_event_ID;   //!
@@ -49,6 +50,7 @@ public :
    TBranch        *b_multi;   //!
    TBranch        *b_multiCry;   //!
    TBranch        *b_multiGagg;   //!
+   TBranch        *b_pileup;    //!
 
    Analyzer(TTree * /*tree*/ =0) : fChain(0) { totnumEntry = 0; 
                                                Frac = 0.1; 
@@ -89,6 +91,9 @@ public :
    
    double eCal[NCRYSTAL];
    double gamma[NCLOVER]; // added-back energy
+
+   void PID_calculation(int ID);
+
 };
 
 #endif
@@ -118,6 +123,7 @@ void Analyzer::Init(TTree *tree)
    fChain->SetBranchAddress("multi",         &multi, &b_multi);
    fChain->SetBranchAddress("multiCry",   &multiCry, &b_multiCry);
    fChain->SetBranchAddress("multiGagg", &multiGagg, &b_multiGagg);
+   fChain->SetBranchAddress("pileup",        pileup, &b_pileup);
 
    TString option = GetOption();
    if ( option != "" ) outEV2Name = option;

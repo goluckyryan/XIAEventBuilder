@@ -49,7 +49,8 @@ class evtReader{
     ~evtReader();
     
     void OpenFile(TString inFileName);
-    
+    void CloseFile();    
+
     void UpdateFileSize();
     bool IsEndOfFile();
     
@@ -122,6 +123,17 @@ void evtReader::OpenFile(TString inFileName){
     
     isOpened = true;
   }
+};
+
+void evtReader::CloseFile(){
+  fclose(inFile);
+  isOpened = false;
+  data->Clear();
+  inFileSize = 0;
+  inFilePos  = 0;
+  nBlock     = 0;    
+  blockID    = -1;
+  endOfFile  = false;
 };
 
 void evtReader::UpdateFileSize(){

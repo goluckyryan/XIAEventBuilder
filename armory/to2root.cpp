@@ -84,6 +84,7 @@ int main(int argc, char **argv) {
   int                   id[MAX_ID] = {0};
   double                 e[MAX_ID] = {TMath::QuietNaN()};  
   unsigned long long   e_t[MAX_ID] = {0};
+  bool              pileup[MAX_ID] = {0};
   int               qdc[MAX_ID][8] = {0};
   int                     multiCry = 0 ; /// this is total multiplicity for all crystal
   int                        runID = 0;  // date-run-fileID, Dec15-02-001 = 1502001
@@ -95,6 +96,7 @@ int main(int argc, char **argv) {
   tree->Branch("detID",             id, "detID[multi]/I");
   tree->Branch("e",                  e, "e[multi]/D");
   tree->Branch("e_t",              e_t, "e_timestamp[multi]/l");
+  tree->Branch("pileup",        pileup, "pileup[multi]/O");
   tree->Branch("qdc",              qdc, "qdc[multi][8]/I");
   tree->Branch("multiCry",   &multiCry, "multiplicity_crystal/I");  
   tree->Branch("multiGagg", &multiGagg, "multiplicity_GAGG/I");  
@@ -134,6 +136,8 @@ int main(int argc, char **argv) {
             etime = data->time;
             tdif  = 0;
             multi = 0;
+            multiCry = 0;
+            multiGagg = 0;
         }else {
             tdif = data->time - etime;
         }    
@@ -162,6 +166,7 @@ int main(int argc, char **argv) {
             id[multi]  = mapping[haha];
             e[multi]   = data->energy;
             e_t[multi] = data->time;
+            pileup[multi] = data->pileup;
             for( int i = 0; i < 8; i++) qdc[multi][i] = data->QDCsum[i];
             multi++ ;
             if( id[multi] < 100 ) multiCry ++;    
@@ -170,10 +175,11 @@ int main(int argc, char **argv) {
         }else{
           //if within time window, fill array;
           int haha  = data->crate*MAX_BOARDS_PER_CRATE*MAX_CHANNELS_PER_BOARD + (data->slot-BOARD_START)*MAX_CHANNELS_PER_BOARD + data->ch;
-          id[multi]  = mapping[haha];
-          e[multi]   = data->energy;
-          e_t[multi] = data->time;
-          for( int i = 0; i < 8; i++) qdc[multi-1][i] = data->QDCsum[i];
+          id[multi]     = mapping[haha];
+          e[multi]      = data->energy;
+          e_t[multi]    = data->time;
+          pileup[multi] = data->pileup;
+          for( int i = 0; i < 8; i++) qdc[multi][i] = data->QDCsum[i];
           multi++ ;
           if( id[multi] < 100 ) multiCry ++;
           if( id[multi] >= 200 ) multiGagg ++;            
@@ -192,21 +198,24 @@ int main(int argc, char **argv) {
     evt->PrintStatus(1);
     printf("\n\n\n");
     printf("             total number of event built : %llu\n", evID);    
-    printf(" total number of Gamma - GAGG coincdient : %d (%.3f %%)\n", countGP, countGP*1.0/evID);    
+    //printf(" total number of Gamma - GAGG coincdient : %d (%.3f %%)\n", countGP, countGP*1.0/evID);    
     
     outRootFile->cd();
     tree->Write();
-    
-    totalDataSize += evt->GetFileSize()/1024./1024./1024.;
+
+    totalDataSize += (evt->GetFileSize())/1024./1024./1024.;
     
     double rootFileSize = outRootFile->GetSize()/1024./1024./1024. ; // in GB
     printf(" ----------- root file size : %.3f GB\n", rootFileSize);
     printf(" ---------- total read size : %.3f GB\n", totalDataSize);
     printf(" ----------- reduction rate : %.3f %%\n", rootFileSize*100./totalDataSize);
+
+    evt->CloseFile();
     
+    /*
     if( rootFileSize > 3.0 ) {
       break;
-    }
+    }*/
     
     ///try to open a new root file when file size > 2 GB
     /*if( rootFileSize > 2.0 ) {
@@ -242,7 +251,7 @@ int main(int argc, char **argv) {
 
   printf("\n\n\n==================== finished.\r\n");
   
-  printf(" number of Gamma - GAGG coincdient : %d\n", countGP);
+  //printf(" number of Gamma - GAGG coincdient : %d\n", countGP);
 
   return 0;
 }
