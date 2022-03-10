@@ -17,13 +17,17 @@ int energyRange[3] = {1, 30, 800}; // keV {resol, min, max}
 
 double BGO_threshold = 0; // in ch
 
-int pidMaxRange[3] = {500, 300, 1800}; //nBin, tail, and peak
+int pidMaxRange[3] = {500, 400, 1600}; //nBin, tail, and peak
 
 TString e_corr = "correction_e.dat";
 
 TString cutFileName1 = "protonCut.root";
 //TString cutFileName1 = "alphaCut.root";
 //TString cutFileName1 = "LiCut.root";
+
+short timeGateFlag = 4; // 0 = off, 1 <, 2 >, 3 sandwish, 4 !sandwish
+unsigned int timeGate[2] = {45, 65}; // if timeGateFlag < 3, only timeGate[0] use, else, {min, max}
+
 
 bool save_ev2 = false;
 
@@ -44,14 +48,14 @@ TH2F * hgg;
 
 TH1F * hTDiff;
 
-
-
 TH2F * hPID[NGAGG];
 TH2F * hPID_A[NGAGG];
 TH2F * hPID_B[NGAGG];
 TH2F * hGAGGVID;
 ///----- after gamma gate
 TH2F * hPID_A_g[NGAGG];
+TH2F * hpeakVrun;
+TH2F * htailVrun;
 
 
 ///----- after calibration and BGO veto
@@ -110,10 +114,13 @@ void Analyzer::Begin(TTree * tree){
    
    for( int i = 0; i < NGAGG; i++){
      hPID[i] = new TH2F(Form("hPID%02d", i), Form("PID-%2d; tail; peak ", i), pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
-     hPID_A[i] = new TH2F(Form("hPID_A%02d",i), Form("PID_A detID = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
-     hPID_B[i] = new TH2F(Form("hPID_B%02d",i), Form("PID_B detID = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
-     hPID_A_g[i] = new TH2F(Form("hPID_A_g%02d",i), Form("PID_A detID = %2d (gated); tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
+     hPID_A[i] = new TH2F(Form("hPID_A%02d",i), Form("PID_A GAGG = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
+     hPID_B[i] = new TH2F(Form("hPID_B%02d",i), Form("PID_B GAGG = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
+     hPID_A_g[i] = new TH2F(Form("hPID_A_g%02d",i), Form("PID_A GAGG = %2d (gated); tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
   }
+  
+  hpeakVrun = new TH2F("hpeakVrun", "GAGG-9 peak vs run", 100, 0, 100, pidMaxRange[0], -50, pidMaxRange[2]);
+  htailVrun = new TH2F("htailVrun", "GAGG-9 tail vs run", 100, 0, 100, pidMaxRange[0], -50, pidMaxRange[1]);
 
   hGAGGVID = new TH2F("hGAGGVID", "GAGG V ID", 80, 0, 80, 400, -50, 2000);
    
@@ -177,21 +184,21 @@ Bool_t Analyzer::Process(Long64_t entry){
    b_detID->GetEntry(entry);
    b_qdc->GetEntry(entry);
    b_pileup->GetEntry(entry);
-   
-   if( multi == 0 ) return kTRUE;
-   
-   for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
-   for( int i = 0; i < NCLOVER; i++) gamma[i] = 0;
+   b_runID->GetEntry(entry);
+     
+   //################### Make PID from GAGG
 
-   ///printf("---------------------------- %d \n", multi);
-   
-   double bg[NGAGG][2]={0}, peak[NGAGG][2]={0}, tail[NGAGG][2] = {0};
+   double bg[NGAGG][2]={TMath::QuietNaN()}, peak[NGAGG][2]={TMath::QuietNaN()}, tail[NGAGG][2] = {TMath::QuietNaN()};
    int count[NGAGG] = {0} ;
 
-   ///=========== make the particle gate
    for( int i = 0; i < multi ; i ++){
       
-      if( e_t[i] - e_t[0] > 20 ) continue;
+      if( timeGateFlag == 1 && e_t[i] - e_t[0] > timeGate[0] ) continue;
+      if( timeGateFlag == 2 && e_t[i] - e_t[0] < timeGate[0] ) continue;
+      if( timeGateFlag == 3 && !(timeGate[0] < e_t[i] - e_t[0] && e_t[i] - e_t[0] < timeGate[1]) ) continue;
+      if( timeGateFlag == 4 &&   timeGate[0] < e_t[i] - e_t[0] && e_t[i] - e_t[0] < timeGate[1] ) continue;
+
+
       if( pileup[i] == 1 ) continue;
       if( e[i] < 100 ) continue;
       int id = detID[i];
@@ -225,29 +232,33 @@ Bool_t Analyzer::Process(Long64_t entry){
       
    }
 
+  double tailAvg[NGAGG] = {TMath::QuietNaN()};
+  double peakAvg[NGAGG] = {TMath::QuietNaN()};
 
-  ///#########################################################
-  ///================ coincident gate between proton and gamma
-
-  ///printf("======================\n");
   for ( int i = 0 ; i < NGAGG ; i++){   
 
     if( count[i] == 2 ){
       
-      double tailAvg = (tail[i][0]+tail[i][1])/2.;
-      double peakAvg = (peak[i][0]+peak[i][1])/2.;
+      tailAvg[i] = (tail[i][0]+tail[i][1])/2.;
+      peakAvg[i] = (peak[i][0]+peak[i][1])/2.;
        
-      hPID[i]->Fill( tailAvg, peakAvg);
+      hPID[i]->Fill( tailAvg[i], peakAvg[i]);
+      if( i == 9 ){
+        hpeakVrun->Fill( runID - 901000, peakAvg[i] );
+        htailVrun->Fill( runID - 901000, tailAvg[i] );
+      }
     }
   }
    
    
-  ///=========== Looping data for the event   
+  ///################## Gamma data from Clover
+  for( int i = 0; i < NCRYSTAL; i++) eCal[i] = TMath::QuietNaN();
+  for( int i = 0; i < NCLOVER; i++) gamma[i] = 0;
+
   for( int i = 0; i < multi ; i ++){
       if( pileup[i] == 1 ) continue;
+      if( 200 < detID[i] ) continue;
       int id = detID[i];
-      
-      ///printf("%d %f %llu\n", id, e[i], e_t[i]);
 
       //======== Fill raw data
       if( 0 <= id &&  id < NCRYSTAL ){  /// gamma data
@@ -262,18 +273,12 @@ Bool_t Analyzer::Process(Long64_t entry){
          }
       }
       
-      if ( 100 < id && id < 200 ){ /// BGO data
-         
-      }
-      
-      if( 200 < id && id  < 300){ /// GAGG
-         continue;
-      }
-      
-      
       //======== TDiff veto
-      //if( !(e_t[i] - e_t[0] < 20 || e_t[i] - e_t[0] > 35) ) continue;
-      if( e_t[i] - e_t[0] > 20 ) continue;
+      if( timeGateFlag == 1 && e_t[i] - e_t[0] > timeGate[0] ) continue;
+      if( timeGateFlag == 2 && e_t[i] - e_t[0] < timeGate[0] ) continue;
+      if( timeGateFlag == 3 && !(timeGate[0] < e_t[i] - e_t[0] && e_t[i] - e_t[0] < timeGate[1]) ) continue;
+      if( timeGateFlag == 4 &&   timeGate[0] < e_t[i] - e_t[0] && e_t[i] - e_t[0] < timeGate[1] ) continue;
+
       
       if ( i > 0 ) hTDiff->Fill( e_t[i] - e_t[0]);
       
@@ -289,6 +294,7 @@ Bool_t Analyzer::Process(Long64_t entry){
          }
       }
       if( dropflag ) continue;
+      
       
       if( 0<= id && id < NCRYSTAL ) {
          if( e_corr == "" ){
@@ -310,17 +316,25 @@ Bool_t Analyzer::Process(Long64_t entry){
          }
          
          
-         ///========== add back and remove cross talk
+         ///========== add back 
          int cloverID = id /4;                  
          
          if( eCal[id] > energyRange[1]/4. ) gamma[cloverID] += eCal[id];
+         
+         
+         ///========= remove cross talk
+         
+         ///========= doppler correction
          
       }
       
    }
    
+   
+   //################ Gamma-Paritcle 
+   
    for( int i = 0; i < NCLOVER; i++){
-    for( int j = 0; j < NCLOVER; j++){
+    for( int j = i+1; j < NCLOVER; j++){
       if( gamma[i] > 0 && gamma[j] > 0 && i != j ) hgg->Fill( gamma[i], gamma[j]);
     }
    }
@@ -331,7 +345,8 @@ Bool_t Analyzer::Process(Long64_t entry){
          hg[i]->Fill(gamma[i]);
          
          for( int gi = 0; gi < NGAGG ; gi ++){    
-           if( cut1->IsInside(tail[gi][0], peak[gi][0]) )  {
+           //if( cut1->IsInside(tail[gi][0], peak[gi][0]) )  {
+           if( cut1->IsInside(tailAvg[gi], peakAvg[gi]) )  {
             hg_g[i]->Fill(gamma[i]);  
            }    
          }
@@ -399,19 +414,23 @@ void Analyzer::Terminate(){
   //heCalVID->Draw("colz");
 
   hPID[9]->Draw("colz");
+  cut1->Draw("same");
 
   //========================= canvas 6   
   padID++;
   cCanvas->cd(padID);
   cCanvas->cd(padID)->SetLogz(1);
-  hPID_A[9]->Draw("colz");
-  cut1->Draw("same");
+  hpeakVrun->Draw("colz");
+  
+  //hPID_A[9]->Draw("colz");
 
   //========================= canvas 7   
   padID++;
   cCanvas->cd(padID);
   cCanvas->cd(padID)->SetLogz(1);
-  hPID_B[9]->Draw("colz");
+  //htailVrun->Draw("colz");
+  hgg->Draw("colz");
+  //hPID_B[9]->Draw("colz");
 
   //========================= canvas 8   
   padID++;
@@ -449,14 +468,13 @@ void Analyzer::Terminate(){
    h0_g->Draw("same");
    hg[0]->Draw("same");
    
-/**/
+*/
+
    printf("=============== loaded AutoFit.C, try showFitMethos()\n");
    gROOT->ProcessLine(".L armory/AutoFit.C");   
    printf("=============== Analyzer Utility\n");
    gROOT->ProcessLine(".L armory/Analyzer_Utili.c");
    gROOT->ProcessLine("listDraws()");
-   
-
-   
+     
 
 }
