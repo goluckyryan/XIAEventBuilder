@@ -11,7 +11,7 @@ SaveFile=$1
 
 DIR=$(pwd)
 TIMEWINDOW=100
-DATA_DIR=data/data/Mar10-04
+DATA_DIR=data/data/$3
 
 fileList=$(\ls $DIR/${DATA_DIR}/*.evt.to.fsu.100)
 numFile=$(\ls -1 $DIR/${DATA_DIR}/*.evt.to.fsu.100 | wc -l)

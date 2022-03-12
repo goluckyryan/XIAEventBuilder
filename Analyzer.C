@@ -22,12 +22,13 @@ int pidMaxRange[3] = {500, 400, 1600}; //nBin, tail, and peak
 TString e_corr = "correction_e.dat";
 
 TString cutFileName1 = "protonCut.root";
-//TString cutFileName1 = "alphaCut.root";
-//TString cutFileName1 = "LiCut.root";
+TString cutFileName2 = "alphaCut.root";
+TString cutFileName3 = "tritonCut.root";
 
 short timeGateFlag = 4; // 0 = off, 1 <, 2 >, 3 sandwish, 4 !sandwish
 unsigned int timeGate[2] = {45, 65}; // if timeGateFlag < 3, only timeGate[0] use, else, {min, max}
 
+int runIDOffset = 1004000;
 
 bool save_ev2 = false;
 
@@ -49,6 +50,7 @@ TH2F * hgg;
 TH1F * hTDiff;
 
 TH2F * hPID[NGAGG];
+TH2F * hPIDm[NGAGG];
 TH2F * hPID_A[NGAGG];
 TH2F * hPID_B[NGAGG];
 TH2F * hGAGGVID;
@@ -69,12 +71,14 @@ TH1F * hg[NCLOVER];
 TH1F * heCal_g[NCRYSTAL];
 TH2F * heCalVID_g;
 
-TH1F * hg_g[NCLOVER];
-
-
+TH1F * hg_g1[NCLOVER];
+TH1F * hg_g2[NCLOVER];
+TH1F * hg_g3[NCLOVER];
 
 ///============= cut
 TCutG * cut1;
+TCutG * cut2;
+TCutG * cut3;
 
 //############################################ BEGIN
 void Analyzer::Begin(TTree * tree){
@@ -107,20 +111,23 @@ void Analyzer::Begin(TTree * tree){
    
    for( int i = 0; i < NCLOVER; i++){
       hg[i]   = new TH1F(Form("hg%02d", i), Form("Clover-%02d (added-back)", i), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
-      hg_g[i] = new TH1F(Form("hg_g%02d", i), Form("Clover-%02d (added-back) particle", i), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+      hg_g1[i] = new TH1F(Form("hg_g1%02d", i), Form("Clover-%02d (added-back) particle", i), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+      hg_g2[i] = new TH1F(Form("hg_g2%02d", i), Form("Clover-%02d (added-back) particle", i), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
+      hg_g3[i] = new TH1F(Form("hg_g3%02d", i), Form("Clover-%02d (added-back) particle", i), (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
    }
    
    hgg = new TH2F("hgg", "Gamma - Gamma", (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2], (energyRange[2] - energyRange[1])/energyRange[0], energyRange[1], energyRange[2]);
    
    for( int i = 0; i < NGAGG; i++){
      hPID[i] = new TH2F(Form("hPID%02d", i), Form("PID-%2d; tail; peak ", i), pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
+     hPIDm[i] = new TH2F(Form("hPIDm%02d", i), Form("PIDm-%2d; full; peak - tail ", i), pidMaxRange[0], -20, pidMaxRange[1]+2000, pidMaxRange[0], -50, pidMaxRange[2]);
      hPID_A[i] = new TH2F(Form("hPID_A%02d",i), Form("PID_A GAGG = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
      hPID_B[i] = new TH2F(Form("hPID_B%02d",i), Form("PID_B GAGG = %2d; tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
      hPID_A_g[i] = new TH2F(Form("hPID_A_g%02d",i), Form("PID_A GAGG = %2d (gated); tail; peak ", i) , pidMaxRange[0], -20, pidMaxRange[1], pidMaxRange[0], -50, pidMaxRange[2]);
   }
   
-  hpeakVrun = new TH2F("hpeakVrun", "GAGG-9 peak vs run", 100, 0, 100, pidMaxRange[0], -50, pidMaxRange[2]);
-  htailVrun = new TH2F("htailVrun", "GAGG-9 tail vs run", 100, 0, 100, pidMaxRange[0], -50, pidMaxRange[1]);
+  hpeakVrun = new TH2F("hpeakVrun", "GAGG-9 peak vs run", 200, 0, 200, pidMaxRange[0], -50, pidMaxRange[2]);
+  htailVrun = new TH2F("htailVrun", "GAGG-9 tail vs run", 200, 0, 200, pidMaxRange[0], -50, pidMaxRange[1]);
 
   hGAGGVID = new TH2F("hGAGGVID", "GAGG V ID", 80, 0, 80, 400, -50, 2000);
    
@@ -143,15 +150,28 @@ void Analyzer::Begin(TTree * tree){
    
    eCorr = LoadCorrectionParameters(e_corr); 
    
-   
+   printf("======================== Load cuts.\n");   
    if( cutFileName1 != ""){
-      printf("======================== Load cuts.\n");
-   
       TFile * cutFile1 = new TFile(cutFileName1);
       cut1 = (TCutG *) cutFile1->Get("CUTG");
-      printf(" %s is loaded.\n", cut1->GetName());
+      cut1->SetLineColor(2);
+      printf("%s| %s is loaded.\n", cutFileName1.Data(),cut1->GetName());
    }
-      
+
+   if( cutFileName2 != ""){
+      TFile * cutFile2 = new TFile(cutFileName2);
+      cut2 = (TCutG *) cutFile2->Get("CUTG");
+      cut2->SetLineColor(6);
+      printf("%s| %s is loaded.\n", cutFileName2.Data(),cut2->GetName());
+   }
+
+   if( cutFileName3 != ""){
+      TFile * cutFile3 = new TFile(cutFileName3);
+      cut3 = (TCutG *) cutFile3->Get("CUTG");
+      cut3->SetLineColor(5);
+      printf("%s| %s is loaded.\n", cutFileName3.Data(),cut3->GetName());
+   }
+   
    saveEV2 = save_ev2;
 
 }
@@ -221,7 +241,7 @@ Bool_t Analyzer::Process(Long64_t entry){
       // GAGG_B
       if( 50 <= id   ) {
             id = id - 50;
-            
+           
             bg[id][1] = (qdc[i][0] + qdc[i][1])/60.;
             peak[id][1] = qdc[i][3]/20. - bg[id][1];
             tail[id][1] = qdc[i][5]/55. - bg[id][1];
@@ -243,9 +263,10 @@ Bool_t Analyzer::Process(Long64_t entry){
       peakAvg[i] = (peak[i][0]+peak[i][1])/2.;
        
       hPID[i]->Fill( tailAvg[i], peakAvg[i]);
+      hPIDm[i]->Fill( peakAvg[i]-tailAvg[i], 100*(peakAvg[i] / tailAvg[i]) );
       if( i == 9 ){
-        hpeakVrun->Fill( runID - 901000, peakAvg[i] );
-        htailVrun->Fill( runID - 901000, tailAvg[i] );
+        hpeakVrun->Fill( (runID - runIDOffset)/10 + (runID - runIDOffset)%1000, peakAvg[i] );
+        htailVrun->Fill( (runID - runIDOffset)/10 + (runID - runIDOffset)%1000, tailAvg[i] );
       }
     }
   }
@@ -332,10 +353,26 @@ Bool_t Analyzer::Process(Long64_t entry){
    
    
    //################ Gamma-Paritcle 
+   bool fillFlag1 = false;
+   bool fillFlag2 = false;
+   bool fillFlag3 = false;
+   for( int gi = 0; gi < NGAGG ; gi ++){    
+      if( fillFlag1 == false && cut1 != NULL && cut1->IsInside(tailAvg[gi], peakAvg[gi]) )  {
+         fillFlag1 = true; 
+      }
+      if( fillFlag2 == false && cut2 != NULL && cut2->IsInside(tailAvg[gi], peakAvg[gi]) )  {
+         fillFlag2 = true;  
+      }
+      if( fillFlag2 == false && cut3 != NULL && cut3->IsInside(tailAvg[gi], peakAvg[gi]) )  {
+         fillFlag3 = true; 
+      }
+   }
    
    for( int i = 0; i < NCLOVER; i++){
-    for( int j = i+1; j < NCLOVER; j++){
-      if( gamma[i] > 0 && gamma[j] > 0 && i != j ) hgg->Fill( gamma[i], gamma[j]);
+    for( int j = 0; j < NCLOVER; j++){
+      if( gamma[i] > 0 && gamma[j] > 0 && i != j && fillFlag2) {
+          hgg->Fill( gamma[i], gamma[j]);
+      }
     }
    }
    
@@ -344,12 +381,9 @@ Bool_t Analyzer::Process(Long64_t entry){
          
          hg[i]->Fill(gamma[i]);
          
-         for( int gi = 0; gi < NGAGG ; gi ++){    
-           //if( cut1->IsInside(tail[gi][0], peak[gi][0]) )  {
-           if( cut1->IsInside(tailAvg[gi], peakAvg[gi]) )  {
-            hg_g[i]->Fill(gamma[i]);  
-           }    
-         }
+         if( fillFlag1 ) hg_g1[i]->Fill(gamma[i]);  
+         if( fillFlag2 ) hg_g2[i]->Fill(gamma[i]);  
+         if( fillFlag3 ) hg_g3[i]->Fill(gamma[i]);  
       }
 
       if( abs(gamma[i] - 1052 ) < 8 ){
@@ -376,6 +410,7 @@ void Analyzer::Terminate(){
   int canvasXY[2] = {1600 , 800} ;// x, y
   int canvasDiv[2] = {4,2};
   TCanvas *cCanvas  = new TCanvas("cCanvas", "" ,canvasXY[0],canvasXY[1]);
+  if( !cCanvas->GetShowToolBar() ) cCanvas->ToggleToolBar();
   cCanvas->Modified(); cCanvas->Update();
   cCanvas->cd(); cCanvas->Divide(canvasDiv[0],canvasDiv[1]);
 
@@ -401,7 +436,7 @@ void Analyzer::Terminate(){
   cCanvas->cd(padID)->SetLogz(0);
   hTDiff->Draw();
 
-  //========================= canvas 3   
+  //========================= canvas 4  
   padID++;
   cCanvas->cd(padID);
   cCanvas->cd(padID)->SetLogz(0);
@@ -414,16 +449,22 @@ void Analyzer::Terminate(){
   //heCalVID->Draw("colz");
 
   hPID[9]->Draw("colz");
-  cut1->Draw("same");
-
-  //========================= canvas 6   
+  if( cut1 != NULL ) cut1->Draw("same");
+  if( cut2 != NULL ) cut2->Draw("same");
+  
+  
+  //========================= canvas 6
   padID++;
   cCanvas->cd(padID);
   cCanvas->cd(padID)->SetLogz(1);
+  //heCalVID->Draw("colz");
+
+  //hPIDm[9]->Draw("colz");
+
   hpeakVrun->Draw("colz");
   
   //hPID_A[9]->Draw("colz");
-
+  
   //========================= canvas 7   
   padID++;
   cCanvas->cd(padID);
@@ -437,8 +478,12 @@ void Analyzer::Terminate(){
   cCanvas->cd(padID);
   cCanvas->cd(padID)->SetLogz(1);
   //hPID_A_g[9]->Draw("colz");
-  hg_g[6]->Draw();
-
+  hg_g2[6]->SetLineColor(2);
+  hg_g2[6]->Draw();
+  hg_g3[6]->SetLineColor(4);
+  hg_g3[6]->Draw("same");
+  hg_g1[6]->Draw("same");
+  
 /*
    //========================= canvas 1   
    cCanvas->cd(4);
