@@ -34,6 +34,12 @@
 //  4) eventBuilding
 //  3) last 10% data
 
+
+//################################## user setting
+int eRange[2] = {50, 1000}; ///min, max
+
+bool PIDFlag = false;
+int GAGGID = 209;
 //#############################################
 //           main 
 //###############################################
@@ -96,7 +102,6 @@ int main(int argn, char **argv) {
   evt->OpenFile(inFileName);
   if( evt->IsOpen() == false ) return -404;
   DataBlock * data = evt->data;
-  
 
   printf(" in file: \033[1;31m%s\033[m\n", inFileName.Data());
   printf(" Gamma energy correction file : %s\n", corrFile == "" ? "Not provided." : corrFile.Data());
@@ -104,7 +109,10 @@ int main(int argn, char **argv) {
   if( histFileName != "" ) printf(" Save histograms to %s\n", histFileName.Data()); 
   if( rootFileName != "" ) printf(" Save root to %s\n", rootFileName.Data()); 
   printf("--------------------------------\n");
-  
+  printf("Scanning the evt file... \n");
+  evt->ScanNumberOfBlock();
+  printf("go to 90%% of data \n");
+  evt->JumptoPrecent(9);
   
   //================ ROOT tree
   TFile * fFile = NULL;
@@ -129,7 +137,7 @@ int main(int argn, char **argv) {
   //================ Historgrams
   TH1F * he[NCRYSTAL];
   for( int i = 0 ; i < NCRYSTAL; i++){
-    he[i] = new TH1F(Form("he%02d", i), Form("e-%2d", i), 2000, 0, 2000);
+    he[i] = new TH1F(Form("he%02d", i), Form("e-%2d", i), eRange[1]-eRange[0], eRange[0], eRange[1]);
     switch (i % 4){
       case 0 : he[i]->SetLineColor(2); break;
       case 1 : he[i]->SetLineColor(4); break;
@@ -138,8 +146,9 @@ int main(int argn, char **argv) {
     }
   }
   
-  int GAGGID = 209;
-  TH2F * hPID = new TH2F(Form("hPID%d", GAGGID), Form("GAGG - %d; tail; peak", GAGGID), 400, -10, 600, 400, -50, 1000); 
+
+  TH2F * hPID ;
+  if( PIDFlag ) hPID = new TH2F(Form("hPID%d", GAGGID), Form("GAGG - %d; tail; peak", GAGGID), 400, -10, 600, 400, -50, 1000); 
   
   TGraph * gTrace = new TGraph();
   TLatex text;
@@ -153,7 +162,7 @@ int main(int argn, char **argv) {
   
   TCanvas * canvas = new TCanvas("fCanvas", "Online Spectrum", 1800, 2000);
   
-  canvas->Divide(1, 9, 0);
+  canvas->Divide(3, TMath::Ceil(NCLOVER/3.), 0);
   canvas->SetCrosshair(1);
   for( int i = 0; i < 9 ; i++){
     canvas->cd(i+1)->SetBottomMargin(0.1);
@@ -161,17 +170,15 @@ int main(int argn, char **argv) {
   }
   
   ///TCanvas * cTrace = new TCanvas("cTrace", "Trace", 100, 100, 1000, 500);
-  
-  TCanvas * cPID = new TCanvas("cPID", "PID", 100, 100, 500, 500);
+  TCanvas * cPID;
+  if( PIDFlag ) cPID = new TCanvas("cPID", "PID", 100, 100, 500, 500);
   
   //=============== Read File
   int sleepCount = 0;
   
   while ( true ){
 
-    int status = evt->ReadBlock();
-    
-    if( status == -1 ) {
+    if( evt->ReadBlock()== -1 ) {
       break;
       //printf("\n\n\nReached the end of file, wait %d sec to see any update.\n", sleepTime); 
       //sleep( sleepTime );
@@ -211,13 +218,10 @@ int main(int argn, char **argv) {
     }
     
     ///============ QDC 
-    if( detID == GAGGID && (data->headerLength < data->eventLength) ){
+    if( PIDFlag && detID == GAGGID && (data->headerLength < data->eventLength) ){
         double bg   = (data->QDCsum[0] + data->QDCsum[1])/60.;
         double peak = data->QDCsum[3]/20. - bg;
         double tail = data->QDCsum[5]/55. - bg;
-        
-        
-        
         hPID->Fill( tail , peak);
     }
     
@@ -279,11 +283,13 @@ int main(int argn, char **argv) {
       ///}
       
       ///=== for GAGG PID
-      cPID->cd();
-      cPID->SetLogz();
-      hPID->Draw("colz");
-      cPID->Modified();
-      cPID->Update(); 
+      if( PIDFlag ) {
+        cPID->cd();
+        cPID->SetLogz();
+        hPID->Draw("colz");
+        cPID->Modified();
+        cPID->Update();
+      } 
       
       gSystem->ProcessEvents();
     }  
@@ -334,6 +340,5 @@ int main(int argn, char **argv) {
   printf("Crtl+C to end program.\n");
   
   app->Run();
-
 
 }

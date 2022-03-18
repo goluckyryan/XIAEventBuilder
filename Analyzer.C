@@ -451,6 +451,7 @@ void Analyzer::Terminate(){
   hPID[9]->Draw("colz");
   if( cut1 != NULL ) cut1->Draw("same");
   if( cut2 != NULL ) cut2->Draw("same");
+  if( cut3 != NULL ) cut2->Draw("same");
   
   
   //========================= canvas 6

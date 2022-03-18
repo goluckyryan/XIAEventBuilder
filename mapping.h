@@ -10,11 +10,11 @@ ZERO DEGREE : 300 - 399
 
 //==================== mapping
 
-#define NCLOVER        10
+#define NCLOVER        11
 #define NCRYSTAL       NCLOVER*4
 #define NBGO           NCLOVER
 #define NGAGG          26
-#define NZERO          2
+#define NZEROGAGG      2   ///NZERO is used 
 
 //                    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
 int mapping[128] ={   0,   1,   2,   3, 100,   4,   5,   6,   7, 101,   8,   9,  10,  11, 102,  -1,  //mod-0
