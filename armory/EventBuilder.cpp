@@ -17,7 +17,7 @@
 
 int main(int argn, char **argv){
   printf("=====================================\n");
-  printf("===          Event Builder        ===\n");
+  printf("=== Event Builder from *_raw.root ===\n");
   printf("=====================================\n");  
     
   if (argn != 2 && argn != 3  && argn != 4 )    {
