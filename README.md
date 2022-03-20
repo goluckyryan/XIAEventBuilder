@@ -6,6 +6,10 @@ ROOT 6.00+
 
 Codes need to be compiled are in armory/
 
+# Function of Programs 
+![Alt text](armory/programs_explain.png?raw=true "program explained")
+
+
 # armory/DataBlock.h
 this is the source file for the class DataBlock, it stored all information from a single data block from pixie16 output. 
 
