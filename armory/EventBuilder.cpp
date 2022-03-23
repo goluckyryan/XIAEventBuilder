@@ -80,7 +80,7 @@ int main(int argn, char **argv){
   printf(">>> Create output tree\n");
   TFile * saveFile = new TFile(outFileName, "recreate");
   saveFile->cd();
-  TTree * newtree = new TTree("tree", "tree");
+  TTree * newtree = new TTree("tree", outFileName);
 
   Int_t eventID = 0 ;  
   Int_t multi = 0; /// this is total multipicilty for all detectors

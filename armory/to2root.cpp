@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
 
   TFile * outRootFile = new TFile(outFileName, "recreate");
   outRootFile->cd();
-  TTree * tree = new TTree("tree", "tree");
+  TTree * tree = new TTree("tree", outFileName);
 
   unsigned long long          evID = 0;
   int                        multi = 0;

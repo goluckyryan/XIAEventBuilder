@@ -141,14 +141,18 @@ void PreAnalyzer::Init(TTree *tree)
    eCorr = LoadCorrectionParameters("correction_e.dat"); 
    
    ///======================== open a new file
-   saveFileName = "haha.root";
-   
+   //TODO, if it is TChain, then we can get file name, else, use option
+   if( option == "" ){
+      saveFileName = "haha.root";
+   }else{
+      saveFileName = option;
+   }
    saveFile = new TFile( saveFileName,"recreate");
    
    TMacro e_corr("correction_e.dat");
    e_corr.Write("correction_e");
    
-   newTree = new TTree("tree", "tree");
+   newTree = new TTree("tree", saveFileName);
    
    eventID = -1;
    runID = 0;
@@ -156,18 +160,27 @@ void PreAnalyzer::Init(TTree *tree)
    multi_N = 0;
    multiGagg_N = 0;
    
-   newTree->Branch("eventID",       &eventID, "eventID/l");
-   newTree->Branch("runID",         &runID_N, "runID/I");
-   newTree->Branch("multi",         &multi_N, "multi/I"); 
-   newTree->Branch("multiGagg", &multiGagg_N, "multiGagg/I"); 
-   newTree->Branch("gammaID",        gammaID, "gammaID[multi]/S");
-   newTree->Branch("gamma",          gamma_N, "gamma[multi]/D");
-   newTree->Branch("gamma_t",        gamma_t, "gamma_t[multi]/l");
-   newTree->Branch("gaggID",          gaggID, "gaggID[multiGagg]/I");
-   newTree->Branch("gaggP",        gagg_peak, "gaggP[multiGagg]/D");
-   newTree->Branch("gaggT",        gagg_tail, "gaggT[multiGagg]/D");
-   newTree->Branch("gagg_t",          gagg_t, "gagg_t[multiGagg]/l");
-   
+   if( TREESTRUCT ==  0 ){
+      newTree->Branch("eventID",       &eventID, "eventID/l");
+      newTree->Branch("runID",         &runID_N, "runID/I");
+      newTree->Branch("multi",         &multi_N, "multi/I"); 
+      newTree->Branch("multiGagg", &multiGagg_N, "multiGagg/I"); 
+      newTree->Branch("gammaID",        gammaID, "gammaID[multi]/S");
+      newTree->Branch("gamma",          gamma_N, "gamma[multi]/D");
+      newTree->Branch("gamma_t",        gamma_t, "gamma_t[multi]/l");
+      newTree->Branch("gaggID",          gaggID, "gaggID[multiGagg]/I");
+      newTree->Branch("gaggP",        gagg_peak, "gaggP[multiGagg]/D");
+      newTree->Branch("gaggT",        gagg_tail, "gaggT[multiGagg]/D");
+      newTree->Branch("gagg_t",          gagg_t, "gagg_t[multiGagg]/l");
+   }else{
+      newTree->Branch("eventID",       &eventID, "eventID/l");
+      newTree->Branch("runID",         &runID_N, "runID/I");
+      newTree->Branch("gamma",          gamma_N, Form("gamma[%d]/D", NCLOVER));
+      newTree->Branch("gamma_t",        gamma_t, Form("gamma_t[%d]/l", NCLOVER));
+      newTree->Branch("gaggP",        gagg_peak, Form("gaggP[%d]/D", NGAGG));
+      newTree->Branch("gaggT",        gagg_tail, Form("gaggT[%d]/D", NGAGG));
+      newTree->Branch("gagg_t",          gagg_t, Form("gagg_t[%d]/l", NGAGG));
+   }
    printf("======================== Start processing....\n");
    StpWatch.Start();
 

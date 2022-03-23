@@ -1,11 +1,13 @@
 #define PreAnalyzer_cxx
 
-#include "PreAnalyzer.h"
 #include <TStyle.h>
 #include <TMath.h>
-
 #include <stdio.h>
 
+
+#define TREESTRUCT  1 // if 0 = multi, 1 = array.
+
+#include "PreAnalyzer.h"
 
 //############################################ BEGIN
 void PreAnalyzer::Begin(TTree * tree){
@@ -153,19 +155,32 @@ Bool_t PreAnalyzer::Process(Long64_t entry){
    //################ Gamma-Paritcle 
    for( int i = 0 ; i < NCLOVER; i++){
       if( gamma[i] > 0  ) {
-         gammaID[multi_N] = i;
-         gamma_N[multi_N] = gamma[i];
-         gamma_t[multi_N] = gammaTime[i];
-         multi_N++;
+         
+         if( TREESTRUCT == 0 ){
+            gammaID[multi_N] = i;
+            gamma_N[multi_N] = gamma[i];
+            gamma_t[multi_N] = gammaTime[i];
+         }else{
+            gamma_N[i] = gamma[i];
+            gamma_t[i] = gammaTime[i];
+         }
+         multi_N++; 
       }
    }
    
   for ( int i = 0 ; i < NGAGG ; i++){   
     if( count[i] == 2 ){
-      gaggID[multiGagg_N] = i;
-      gagg_tail[multiGagg_N] = (tail[i][0]+tail[i][1])/2.;
-      gagg_peak[multiGagg_N] = (peak[i][0]+peak[i][1])/2.;
-      gagg_t[multiGagg_N]    = gaggTime[i];
+      
+      if ( TREESTRUCT == 0 ){
+         gaggID[multiGagg_N] = i;
+         gagg_tail[multiGagg_N] = (tail[i][0]+tail[i][1])/2.;
+         gagg_peak[multiGagg_N] = (peak[i][0]+peak[i][1])/2.;
+         gagg_t[multiGagg_N]    = gaggTime[i];
+      }else{
+         gagg_tail[i] = (tail[i][0]+tail[i][1])/2.;
+         gagg_peak[i] = (peak[i][0]+peak[i][1])/2.;
+         gagg_t[i]    = gaggTime[i];
+      }
       multiGagg_N++;
     }
   }
@@ -186,9 +201,10 @@ void PreAnalyzer::Terminate(){
 
    saveFile->cd(); //set focus on this file
    newTree->Write(); 
+   Long64_t nEntries = newTree->GetEntries();
    saveFile->Close();
 
-   printf("-------------- done, saved in %s.\n", saveFileName.Data());
+   printf("-------------- done, saved in %s. number of entry : %lld\n", saveFileName.Data(), nEntries);
 
    gROOT->ProcessLine(".q");
 
